@@ -14,7 +14,7 @@ Contract for AI service implementations (currently implemented by `AiProviderSer
 interface IAiApiService {
   callAiAPI(
     messages: Message[],
-    options: Record<string, any>,
+    options: Record<string, unknown>,
     headingPrefix: string,
     url: string,
     editor?: Editor,
@@ -37,9 +37,38 @@ interface IAiApiService {
     settings?: ChatGPT_MDSettings,
     providerType?: string
   ): Promise<string[]>;
-
-  stopStreaming(): void;
 }
+```
+
+### AiProviderInstance
+
+Function type that creates language models from model IDs:
+
+```typescript
+interface AiProviderInstance {
+  (modelId: string): LanguageModel;
+}
+```
+
+### ProviderFactoryConfig
+
+Configuration for creating AI SDK providers:
+
+```typescript
+interface ProviderFactoryConfig {
+  apiKey: string;
+  baseURL: string;
+  fetch?: typeof fetch;
+  name: string; // Required for OpenAICompatible providers
+}
+```
+
+### ProviderFactory
+
+Factory function type for creating providers:
+
+```typescript
+type ProviderFactory = (config: ProviderFactoryConfig | unknown) => AiProviderInstance;
 ```
 
 ### AiProvider
@@ -76,3 +105,12 @@ interface OllamaModel {
   name: string;
 }
 ```
+
+## ProviderAdapter Types
+
+See `src/Services/Adapters/ProviderAdapter.ts` for:
+
+- `ProviderType` - Union of all provider identifiers
+- `AiProviderConfig` - Unified configuration interface
+- `ProviderModelData` - Model data from API responses
+- `ProviderAdapter` - Adapter contract interface

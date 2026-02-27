@@ -13,6 +13,7 @@ Common functionality for all tool approval flows:
 - Two-button layout (Approve/Reject)
 - Editable parameters
 - Result display and selection
+- `getResultSelection()` - Returns selected items from results
 
 ### ToolApprovalModal.ts
 
@@ -24,6 +25,8 @@ Shown when AI requests to use a tool. User can:
 - Modify parameters (e.g., search query) before approval
 - Reject the request
 
+Extends `BaseApprovalModal`.
+
 ### SearchResultsApprovalModal.ts
 
 **Review and filter vault search results**
@@ -31,8 +34,10 @@ Shown when AI requests to use a tool. User can:
 After vault search executes, user selects which files to share with AI:
 
 - Multi-select checkboxes
-- File preview
+- File path display
 - Choose what to share back to AI
+
+Extends `BaseApprovalModal<string>`.
 
 ### WebSearchApprovalModal.ts
 
@@ -43,6 +48,8 @@ After web search executes, user selects which results to share with AI:
 - Multi-select checkboxes
 - Result preview (title, snippet, URL)
 - Choose what to share back to AI
+
+Extends `BaseApprovalModal<WebSearchResult>`.
 
 ## Agent Modals
 
@@ -55,6 +62,7 @@ Extends `SuggestModal<AgentItem>`
 - Lists agents from configured agent folder (alphabetically sorted)
 - Fuzzy search filtering by agent name
 - On selection: sets `agent` frontmatter field in the active note via `SettingsService.updateFrontmatterField()`
+- Uses `AgentService.getAgentFiles()` to list available agents
 
 ### CreateAgentModal.ts
 
@@ -74,10 +82,11 @@ Four wizard steps (`WizardStep` type):
 - Model selection uses inline suggestions (filterable dropdown from available models list)
 - `parseWizardResponse()` handles both clean JSON and JSON embedded in markdown code fences
 - Falls back to manual form if AI unavailable or no models loaded
+- Uses `AgentService.createAgentFile()` to save the new agent
 
 ## Model Selection
 
-### AiModelSuggestModal.ts
+### AiModelSuggestModel.ts
 
 **Model selection modal** (note: file name is `AiModelSuggestModel.ts`)
 
@@ -107,6 +116,7 @@ Extends `SuggestModal<TFile>`
 - Lists templates from configured folder
 - Creates new note from selected template
 - Merges template frontmatter with defaults
+- Uses `TemplateService` to load templates
 
 ## Settings
 
@@ -118,7 +128,7 @@ Extends `PluginSettingTab`
 
 Settings organized in sections:
 
-**API Keys**: OpenAI, OpenRouter, Anthropic, Gemini
+**API Keys**: OpenAI, OpenRouter, Anthropic, Gemini, Z.AI
 
 **Service URLs**: Per-provider base URLs with defaults
 
@@ -128,11 +138,13 @@ Settings organized in sections:
 
 **Chat Behavior**: Stream toggle, cursor position, auto title inference
 
-**Tool Calling**: Enable/disable, Brave API key, custom provider URL
+**Tool Calling**: Enable/disable, web search provider, API key, custom provider URL
 
 **Folders**: Chat folder, template folder, agent folder paths
 
 **Formatting**: Date format, heading level, title inference language
+
+**Templates**: Default frontmatter for new chats
 
 ## Utility Modals
 
@@ -140,7 +152,10 @@ Settings organized in sections:
 
 **Folder creation prompt**
 
-Asks user to create missing folders when chat/template folder doesn't exist.
+Asks user to create missing folders when chat/template/agent folder doesn't exist.
+
+- Simple Yes/No modal
+- Called by `FileService.ensureFolderExists()`
 
 ## Modal Patterns
 
@@ -179,3 +194,7 @@ class MyModal extends Modal {
 **Metadata**:
 
 - `app.metadataCache.getFileCache(file)`
+
+**Workspace**:
+
+- `app.workspace.getActiveViewOfType(MarkdownView)`

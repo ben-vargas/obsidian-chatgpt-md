@@ -21,8 +21,16 @@ Uses Vercel AI SDK (`ai` package) with provider factories:
 - `createAnthropic` - Anthropic
 - `createGoogleGenerativeAI` - Gemini
 - `createOpenRouter` - OpenRouter
-- `createZhipu` - Z.AI
-- `createOpenAICompatible` - Ollama, LM Studio
+- `createOpenAICompatible` - Ollama, LM Studio, Z.AI
+
+**Provider selection**: Based on model prefix (e.g., `ollama@llama3.2`, `openrouter@anthropic/claude-3-5-sonnet`)
+
+**URL Construction**:
+
+- Base URL + API path suffix (adapter-specific)
+- Most providers: `baseURL + /v1`
+- OpenRouter: `baseURL + /api/v1`
+- Z.AI: `baseURL + /api/paas/v4` or `/api/anthropic/v1` depending on URL mode
 
 ### Adapters/ Subdirectory
 
@@ -48,10 +56,10 @@ Key methods:
 
 - **Line-boundary flushing**: Only flushes up to the last `\n` to prevent cursor offset race conditions during markdown re-rendering
 - **Safety valve**: `MAX_BUFFER_SIZE` (10KB) forces flush even without newlines to prevent unbounded buffer growth
+- **Periodic flushing**: Uses `DEFAULT_FLUSH_INTERVAL_MS` for timed flushes
 - **`forceFlush()`**: Called on stream end to write remaining partial line
 - Cursor position management
-- Abort handling via AbortController
-- Platform-specific: desktop uses Node.js streams, mobile uses fetch
+- Uses utility functions from `StreamingHelpers.ts`
 
 ## Editor Operations
 
@@ -67,6 +75,7 @@ Main responsibilities:
 - `createNewChatFromTemplate()` - Template-based chat creation
 - `createNewChatWithHighlightedText()` - Chat from selection
 - `clearChat()` - Remove messages, keep frontmatter
+- `writeInferredTitle()` - Rename file with inferred title
 
 ## API Layer
 
@@ -74,25 +83,33 @@ Main responsibilities:
 
 **HTTP request handling**
 
-- `makeGetRequest()` - Non-streaming GET requests
-- `createFetchAdapter()` - Custom fetch for AI SDK (handles Node.js vs browser)
+- `makeNonStreamingRequest()` - Non-streaming POST requests via Obsidian's `requestUrl`
+- `makeGetRequest()` - GET requests for model fetching
+- `createFetchAdapter()` - Custom fetch for AI SDK (wraps `requestStream`)
 - `setAbortController()` / `stopStreaming()` - Stream control
-- Uses `requestStream.ts` on desktop (Node.js http/https modules)
-- Falls back to native `fetch()` on mobile
+- `wasAborted()` / `resetAbortedFlag()` - Abort state management
 
 ### ApiAuthService.ts
 
 **API key management**
 
-`getApiKey(settings, providerType)` - Returns appropriate key based on provider.
+`getApiKey(settings, providerType)` - Returns appropriate key based on provider:
+
+- OpenAI → `settings.apiKey`
+- OpenRouter → `settings.openrouterApiKey`
+- Anthropic → `settings.anthropicApiKey`
+- Gemini → `settings.geminiApiKey`
+- Z.AI → `settings.zaiApiKey`
+- Ollama/LM Studio → "" (no key required)
 
 ### requestStream.ts
 
 **Node.js HTTP streaming utility**
 
-- Handles streaming responses on desktop Obsidian
-- Works with Node.js `http` and `https` modules
-- Falls back to regular fetch on mobile
+- Handles streaming responses on desktop Obsidian using Node.js `http`/`https` modules
+- Falls back to native `fetch()` on mobile
+- Returns Web API compatible `Response` object
+- Used by `ApiService.createFetchAdapter()` to provide fetch-compatible interface for AI SDK
 
 ## Configuration
 
@@ -100,9 +117,9 @@ Main responsibilities:
 
 **YAML frontmatter handling**
 
-- Parse note frontmatter
-- Merge with global settings (frontmatter takes precedence)
-- Support service-specific URLs
+- `readFrontmatter(file)` - Parse note frontmatter using Obsidian's metadata cache
+- `updateFrontmatterField(file, key, value)` - Update a single field
+- Uses `app.metadataCache.getFileCache()` for parsing
 
 Model prefix parsing:
 
@@ -116,7 +133,7 @@ Model prefix parsing:
 
 ### SettingsService.ts
 
-**Plugin settings management** (now includes frontmatter operations merged from FrontmatterService)
+**Plugin settings management** (includes frontmatter operations merged from FrontmatterService)
 
 - `loadSettings()` / `saveSettings()` - Persistence
 - `migrateSettings()` - Version upgrades via SettingsMigration.ts
@@ -140,12 +157,13 @@ Model prefix parsing:
 
 **Default configuration values for each provider**
 
-- OpenAI defaults
-- OpenRouter defaults
-- Anthropic defaults
-- Gemini defaults
-- Ollama defaults
-- LM Studio defaults
+- `DEFAULT_OPENAI_CONFIG` - url, model, temperature, max_tokens, top_p, presence_penalty, frequency_penalty
+- `DEFAULT_OPENROUTER_CONFIG`
+- `DEFAULT_ANTHROPIC_CONFIG`
+- `DEFAULT_GEMINI_CONFIG`
+- `DEFAULT_OLLAMA_CONFIG`
+- `DEFAULT_LMSTUDIO_CONFIG`
+- `DEFAULT_ZAI_CONFIG`
 
 ## Tool Services (v3.0)
 
@@ -153,8 +171,8 @@ Model prefix parsing:
 
 **Orchestrates tool calling with approval workflow**
 
-- `getToolsForRequest()` - Get enabled tools for AI request
-- `handleToolCalls()` - Process AI tool call requests
+- `getToolsForRequest()` - Get enabled tools for AI request (vault_search, file_read, web_search)
+- `handleToolCalls()` - Process AI tool call requests, show approval modals
 - `processToolResults()` - Format results for continuation
 
 Coordinates VaultSearchService and WebSearchService with approval modals.
@@ -163,7 +181,8 @@ Coordinates VaultSearchService and WebSearchService with approval modals.
 
 **Whitelist-based tool support detection**
 
-- `isModelWhitelisted()` - Check if model supports tools
+- `isModelWhitelisted(model, whitelist)` - Check if model supports tools
+- `getDefaultToolWhitelist()` - Returns default whitelist (GPT-4, Claude, Gemini models)
 
 Tool calling is only available for whitelisted models (configurable in settings).
 
@@ -171,15 +190,15 @@ Tool calling is only available for whitelisted models (configurable in settings)
 
 **Vault operations**
 
-- `searchVault()` - Full-text search across vault (multi-word OR search)
-- `readFiles()` - Read specific files with user approval
+- `searchVault(query)` - Full-text search across vault (multi-word OR search)
+- `readFiles(paths)` - Read specific files with user approval
 
 ### WebSearchService.ts
 
-**Web search via Brave API**
+**Web search via Brave API or custom endpoint**
 
-- `search()` - Execute web search
-- Supports custom provider endpoints
+- `search(query)` - Execute web search
+- Supports Brave API or custom provider endpoints
 - 1,000 free queries/month on Brave API
 
 ### WhitelistValidator.ts
@@ -206,6 +225,7 @@ model: gpt-4o
 temperature: 0.7
 stream: true
 ---
+
 You are a helpful coding assistant specializing in TypeScript...
 ```
 
@@ -218,6 +238,8 @@ Dependencies: `App`, `FileService`, `FrontmatterManager`
 - Read file contents
 - Get files by path or title
 - Folder navigation
+- `ensureFolderExists()` - Create folder with modal prompt if missing
+- `sanitizeFileName()` - Remove invalid characters
 
 ### TemplateService.ts
 
@@ -228,10 +250,12 @@ Dependencies: `App`, `FileService`, `FrontmatterManager`
 ### NotificationService.ts
 
 - Show Obsidian notices
-- Platform-aware (Notice vs status bar for mobile)
+- `showError()`, `showWarning()`, `showSuccess()` helpers
+- Platform-aware (Notice duration)
 
 ### ErrorService.ts
 
 - Process API errors
 - Map HTTP codes to messages
+- `handleApiError()` - Centralized error handling with context
 - User-friendly error display

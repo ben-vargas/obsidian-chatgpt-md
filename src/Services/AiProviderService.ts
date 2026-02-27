@@ -90,12 +90,20 @@ export class AiProviderService implements IAiApiService {
     // Extract provider from model prefix
     for (const [type, adapter] of this.adapters) {
       if (model.startsWith(`${type}@`)) {
+        // Reset provider if adapter type changed to prevent stale provider instances
+        if (this.currentAdapter?.type !== type) {
+          this.provider = undefined;
+        }
         this.currentAdapter = adapter;
         return;
       }
     }
 
     // No prefix found - use default (OpenAI)
+    // Reset provider if switching to default (OpenAI) from a different provider
+    if (this.currentAdapter?.type !== "openai") {
+      this.provider = undefined;
+    }
     this.currentAdapter = this.adapters.get("openai")!;
   }
 
@@ -183,10 +191,23 @@ export class AiProviderService implements IAiApiService {
     settings?: ChatGPT_MDSettings,
     toolService?: ToolService
   ): Promise<{ fullString: string; mode: string; wasAborted?: boolean }> {
+    console.log(`[ChatGPT MD] callAiAPI called`, {
+      model: options.model,
+      url,
+      messageCount: messages.length,
+      stream: options.stream,
+      hasEditor: !!editor,
+    });
+
     const config = { ...this.getDefaultConfig(), ...options };
 
     // Set provider from model
     this.setProviderFromModel(config.model);
+
+    console.log(`[ChatGPT MD] Provider set to: ${this.currentAdapter.type}`, {
+      finalModel: config.model,
+      finalUrl: url,
+    });
 
     // Use URL from settings if available
     if (settings) {
@@ -348,6 +369,7 @@ export class AiProviderService implements IAiApiService {
    */
   private ensureProvider(apiKey: string | undefined, config: AiProviderConfig): void {
     if (this.provider) {
+      console.log(`[ChatGPT MD] Reusing existing provider for ${this.currentAdapter.type}`);
       return;
     }
 
@@ -357,10 +379,17 @@ export class AiProviderService implements IAiApiService {
     // Use adapter-specific path suffix instead of hardcoded "/v1"
     // This allows OpenRouter to use /api/v1 while others use /v1
     const apiPathSuffix = this.currentAdapter.getApiPathSuffix(config.url);
+    const baseURL = `${config.url}${apiPathSuffix}`;
+
+    console.log(`[ChatGPT MD] Creating new provider for ${this.currentAdapter.type}`, {
+      baseURL,
+      hasApiKey: !!apiKey,
+      apiPathSuffix,
+    });
 
     this.provider = providerFactory({
       apiKey: apiKey || "",
-      baseURL: `${config.url}${apiPathSuffix}`,
+      baseURL,
       fetch: customFetch,
       name: this.currentAdapter.type, // Required for OpenAICompatible providers
     });
@@ -410,8 +439,29 @@ export class AiProviderService implements IAiApiService {
     settings?: ChatGPT_MDSettings,
     toolService?: ToolService
   ): Promise<StreamingResponse> {
+    console.log(`[ChatGPT MD] callStreamingAPI called`, {
+      provider: this.currentAdapter.type,
+      model: config.model,
+      messageCount: messages.length,
+    });
+
+    // Validate model is set
+    if (!config.model) {
+      const errorMsg =
+        "No model specified. Please select a model using the 'Select Model' command or set it in the frontmatter.";
+      console.error(`[ChatGPT MD] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+
     this.ensureProvider(apiKey, config);
     const modelName = this.extractModelName(config.model);
+
+    if (!modelName) {
+      const errorMsg = `Invalid model name: ${config.model}. Expected format: 'ollama@model-name' or 'model-name'`;
+      console.error(`[ChatGPT MD] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+
     const model = this.provider!(modelName);
 
     // Get tools only if toolService is available and settings are provided
@@ -440,8 +490,23 @@ export class AiProviderService implements IAiApiService {
     settings?: ChatGPT_MDSettings,
     toolService?: ToolService
   ): Promise<{ fullString: string; mode: string }> {
+    // Validate model is set
+    if (!config.model) {
+      const errorMsg =
+        "No model specified. Please select a model using the 'Select Model' command or set it in the frontmatter.";
+      console.error(`[ChatGPT MD] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+
     this.ensureProvider(apiKey, config);
     const modelName = this.extractModelName(config.model);
+
+    if (!modelName) {
+      const errorMsg = `Invalid model name: ${config.model}. Expected format: 'ollama@model-name' or 'model-name'`;
+      console.error(`[ChatGPT MD] ${errorMsg}`);
+      throw new Error(errorMsg);
+    }
+
     const model = this.provider!(modelName);
 
     // Get tools only if toolService is available and settings are provided
@@ -523,6 +588,8 @@ export class AiProviderService implements IAiApiService {
     toolService?: ToolService,
     settings?: ChatGPT_MDSettings
   ): Promise<StreamingResponse> {
+    console.log(`[ChatGPT MD] callAiSdkStreamText called`, { modelName, messageCount: messages.length });
+
     const { aiSdkMessages, handler, abortController } = this.setupStreamingContext(
       messages,
       editor,
@@ -534,10 +601,20 @@ export class AiProviderService implements IAiApiService {
     try {
       const request = this.buildStreamRequest(model, aiSdkMessages, abortController.signal, tools, modelName, settings);
 
+      console.log(`[ChatGPT MD] Starting streamText with request`, {
+        model: request.model,
+        messageCount: request.messages?.length,
+        hasAbortSignal: !!request.abortSignal,
+      });
+
       handler.startBuffering();
       const result = streamText(request);
+
+      console.log(`[ChatGPT MD] streamText initiated, consuming stream...`);
       let fullText = await this.consumeStream(result, handler);
       const finalResult = await result;
+
+      console.log(`[ChatGPT MD] Stream completed`, { fullTextLength: fullText.length });
 
       this.checkForStreamError(finalResult);
 
@@ -652,12 +729,23 @@ export class AiProviderService implements IAiApiService {
     let text = "";
     const { textStream } = streamResult;
 
-    for await (const textPart of textStream) {
-      if (this.apiService.wasAborted()) {
-        break;
+    console.log(`[ChatGPT MD] consumeStream starting iteration...`);
+    let chunkCount = 0;
+
+    try {
+      for await (const textPart of textStream) {
+        chunkCount++;
+        if (this.apiService.wasAborted()) {
+          console.log(`[ChatGPT MD] Stream aborted after ${chunkCount} chunks`);
+          break;
+        }
+        text += textPart;
+        handler.appendText(textPart);
       }
-      text += textPart;
-      handler.appendText(textPart);
+      console.log(`[ChatGPT MD] consumeStream completed with ${chunkCount} chunks, total length: ${text.length}`);
+    } catch (streamError) {
+      console.error(`[ChatGPT MD] Error consuming stream:`, streamError);
+      throw streamError;
     }
 
     handler.stopBuffering();
