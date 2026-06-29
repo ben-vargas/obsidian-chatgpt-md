@@ -405,6 +405,23 @@ export class AiProviderService implements IAiApiService {
   }
 
   /**
+   * Create an AI SDK language model for the active provider.
+   * OpenAI search-preview models must use the Chat Completions API.
+   */
+  private createLanguageModel(modelName: string): LanguageModel {
+    const provider = this.provider!;
+
+    if (this.currentAdapter.type === "openai" && modelName.includes("search-preview")) {
+      const chatModelFactory = (provider as AiProviderInstance & { chat?: (modelId: string) => LanguageModel }).chat;
+      if (chatModelFactory) {
+        return chatModelFactory(modelName);
+      }
+    }
+
+    return provider(modelName);
+  }
+
+  /**
    * Call the AI API in streaming mode
    */
   private async callStreamingAPI(
@@ -440,7 +457,7 @@ export class AiProviderService implements IAiApiService {
       throw new Error(errorMsg);
     }
 
-    const model = this.provider!(modelName);
+    const model = this.createLanguageModel(modelName);
 
     // Get tools only if toolService is available and settings are provided
     const tools = toolService && settings ? toolService.getToolsForRequest(settings) : undefined;
@@ -485,7 +502,7 @@ export class AiProviderService implements IAiApiService {
       throw new Error(errorMsg);
     }
 
-    const model = this.provider!(modelName);
+    const model = this.createLanguageModel(modelName);
 
     // Get tools only if toolService is available and settings are provided
     const tools = toolService && settings ? toolService.getToolsForRequest(settings) : undefined;

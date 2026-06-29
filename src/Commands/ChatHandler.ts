@@ -97,7 +97,13 @@ export class ChatHandler {
       if (Platform.isMobile) {
         new Notice(`${PLUGIN_PREFIX} Calling ${frontmatter.model}. ` + err, NOTICE_DURATION_LONG_MS);
       }
-      this.services.errorService.handleApiError(err, "ChatHandler.execute", { showNotification: true });
+      this.services.errorService.handleApiError(err, "ChatHandler.execute", {
+        showNotification: true,
+        context: {
+          model: frontmatter.model,
+          url: getAiApiUrls(frontmatter)[frontmatter.aiService],
+        },
+      });
     }
 
     this.updateStatusBar("");
