@@ -9,68 +9,8 @@ import { objectToYamlFrontmatter, parseSettingsFrontmatter } from "src/Utilities
 import { getDefaultConfigForService } from "src/Utilities/FrontmatterHelpers";
 import { aiProviderFromKeys, aiProviderFromUrl } from "src/Utilities/ProviderHelpers";
 import type { AgentService } from "./AgentService";
-import {
-  AI_SERVICE_ANTHROPIC,
-  AI_SERVICE_GEMINI,
-  AI_SERVICE_LMSTUDIO,
-  AI_SERVICE_OLLAMA,
-  AI_SERVICE_OPENAI,
-  AI_SERVICE_OPENROUTER,
-  AI_SERVICE_ZAI,
-} from "src/Constants";
-
-/**
- * Provider-specific frontmatter field mapping
- */
-const PROVIDER_FRONTMATTER_FIELDS: Record<string, (settings: ChatGPT_MDSettings) => Record<string, unknown>> = {
-  [AI_SERVICE_OPENAI]: (s) => ({
-    model: s.openaiDefaultModel,
-    temperature: s.openaiDefaultTemperature,
-    top_p: s.openaiDefaultTopP,
-    max_tokens: s.openaiDefaultMaxTokens,
-    presence_penalty: s.openaiDefaultPresencePenalty,
-    frequency_penalty: s.openaiDefaultFrequencyPenalty,
-  }),
-  [AI_SERVICE_OLLAMA]: (s) => ({
-    url: s.ollamaUrl,
-    temperature: s.ollamaDefaultTemperature,
-    top_p: s.ollamaDefaultTopP,
-  }),
-  [AI_SERVICE_OPENROUTER]: (s) => ({
-    model: s.openrouterDefaultModel,
-    temperature: s.openrouterDefaultTemperature,
-    top_p: s.openrouterDefaultTopP,
-    max_tokens: s.openrouterDefaultMaxTokens,
-    presence_penalty: s.openrouterDefaultPresencePenalty,
-    frequency_penalty: s.openrouterDefaultFrequencyPenalty,
-  }),
-  [AI_SERVICE_LMSTUDIO]: (s) => ({
-    url: s.lmstudioUrl,
-    temperature: s.lmstudioDefaultTemperature,
-    top_p: s.lmstudioDefaultTopP,
-    presence_penalty: s.lmstudioDefaultPresencePenalty,
-    frequency_penalty: s.lmstudioDefaultFrequencyPenalty,
-  }),
-  [AI_SERVICE_ANTHROPIC]: (s) => ({
-    model: s.anthropicDefaultModel,
-    url: s.anthropicUrl,
-    temperature: s.anthropicDefaultTemperature,
-    max_tokens: s.anthropicDefaultMaxTokens,
-  }),
-  [AI_SERVICE_GEMINI]: (s) => ({
-    model: s.geminiDefaultModel,
-    url: s.geminiUrl,
-    temperature: s.geminiDefaultTemperature,
-    top_p: s.geminiDefaultTopP,
-    max_tokens: s.geminiDefaultMaxTokens,
-  }),
-  [AI_SERVICE_ZAI]: (s) => ({
-    model: s.zaiDefaultModel,
-    url: s.zaiUrl,
-    temperature: s.zaiDefaultTemperature,
-    max_tokens: s.zaiDefaultMaxTokens,
-  }),
-};
+import { AI_SERVICE_OPENAI } from "src/Constants";
+import { getProviderFrontmatterFields } from "./Providers/ProviderRegistry";
 
 /**
  * Manages plugin settings with persistence
@@ -280,12 +220,10 @@ export class SettingsService {
 
     // Generate frontmatter from scratch using data-driven approach
     const aiService = (additionalSettings.aiService as string) || AI_SERVICE_OPENAI;
-    const getProviderFields = PROVIDER_FRONTMATTER_FIELDS[aiService];
-
     const frontmatterObj: Record<string, unknown> = {
       stream: this.settings.stream,
       ...additionalSettings,
-      ...(getProviderFields ? getProviderFields(this.settings) : {}),
+      ...getProviderFrontmatterFields(aiService, this.settings),
     };
 
     return objectToYamlFrontmatter(frontmatterObj);

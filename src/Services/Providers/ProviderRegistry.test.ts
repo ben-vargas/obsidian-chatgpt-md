@@ -32,4 +32,17 @@ describe("ProviderRegistry", () => {
       "https://example.test"
     );
   });
+
+  it("derives provider frontmatter fields from settings", () => {
+    const openAiProvider = getProviderDefinition("openai");
+    const fields = openAiProvider.getFrontmatterFields({
+      ...DEFAULT_SETTINGS,
+      openaiDefaultModel: "openai@test-model",
+      openaiDefaultTemperature: 0.2,
+    });
+
+    expect(fields.model).toBe("openai@test-model");
+    expect(fields.temperature).toBe(0.2);
+    expect(fields.max_tokens).toBe(DEFAULT_SETTINGS.openaiDefaultMaxTokens);
+  });
 });

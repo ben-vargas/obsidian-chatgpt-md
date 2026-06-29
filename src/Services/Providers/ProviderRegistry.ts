@@ -40,6 +40,7 @@ export interface ProviderDefinition {
   urlSetting: UrlSettingKey;
   defaultUrl: string;
   createAdapter: () => ProviderAdapter;
+  getFrontmatterFields: (settings: ChatGPT_MDSettings) => Record<string, unknown>;
 }
 
 export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
@@ -50,6 +51,11 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "ollamaUrl",
     defaultUrl: DEFAULT_OLLAMA_CONFIG.url,
     createAdapter: () => new OllamaAdapter(),
+    getFrontmatterFields: (settings) => ({
+      url: settings.ollamaUrl,
+      temperature: settings.ollamaDefaultTemperature,
+      top_p: settings.ollamaDefaultTopP,
+    }),
   },
   {
     id: AI_SERVICE_OPENAI,
@@ -59,6 +65,14 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "openaiUrl",
     defaultUrl: DEFAULT_OPENAI_CONFIG.url,
     createAdapter: () => new OpenAIAdapter(),
+    getFrontmatterFields: (settings) => ({
+      model: settings.openaiDefaultModel,
+      temperature: settings.openaiDefaultTemperature,
+      top_p: settings.openaiDefaultTopP,
+      max_tokens: settings.openaiDefaultMaxTokens,
+      presence_penalty: settings.openaiDefaultPresencePenalty,
+      frequency_penalty: settings.openaiDefaultFrequencyPenalty,
+    }),
   },
   {
     id: AI_SERVICE_OPENROUTER,
@@ -68,6 +82,14 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "openrouterUrl",
     defaultUrl: DEFAULT_OPENROUTER_CONFIG.url,
     createAdapter: () => new OpenRouterAdapter(),
+    getFrontmatterFields: (settings) => ({
+      model: settings.openrouterDefaultModel,
+      temperature: settings.openrouterDefaultTemperature,
+      top_p: settings.openrouterDefaultTopP,
+      max_tokens: settings.openrouterDefaultMaxTokens,
+      presence_penalty: settings.openrouterDefaultPresencePenalty,
+      frequency_penalty: settings.openrouterDefaultFrequencyPenalty,
+    }),
   },
   {
     id: AI_SERVICE_LMSTUDIO,
@@ -76,6 +98,13 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "lmstudioUrl",
     defaultUrl: DEFAULT_LMSTUDIO_CONFIG.url,
     createAdapter: () => new LmStudioAdapter(),
+    getFrontmatterFields: (settings) => ({
+      url: settings.lmstudioUrl,
+      temperature: settings.lmstudioDefaultTemperature,
+      top_p: settings.lmstudioDefaultTopP,
+      presence_penalty: settings.lmstudioDefaultPresencePenalty,
+      frequency_penalty: settings.lmstudioDefaultFrequencyPenalty,
+    }),
   },
   {
     id: AI_SERVICE_ANTHROPIC,
@@ -85,6 +114,12 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "anthropicUrl",
     defaultUrl: DEFAULT_ANTHROPIC_CONFIG.url,
     createAdapter: () => new AnthropicAdapter(),
+    getFrontmatterFields: (settings) => ({
+      model: settings.anthropicDefaultModel,
+      url: settings.anthropicUrl,
+      temperature: settings.anthropicDefaultTemperature,
+      max_tokens: settings.anthropicDefaultMaxTokens,
+    }),
   },
   {
     id: AI_SERVICE_GEMINI,
@@ -94,6 +129,13 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "geminiUrl",
     defaultUrl: DEFAULT_GEMINI_CONFIG.url,
     createAdapter: () => new GeminiAdapter(),
+    getFrontmatterFields: (settings) => ({
+      model: settings.geminiDefaultModel,
+      url: settings.geminiUrl,
+      temperature: settings.geminiDefaultTemperature,
+      top_p: settings.geminiDefaultTopP,
+      max_tokens: settings.geminiDefaultMaxTokens,
+    }),
   },
   {
     id: AI_SERVICE_ZAI,
@@ -103,6 +145,12 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "zaiUrl",
     defaultUrl: DEFAULT_ZAI_CONFIG.url,
     createAdapter: () => new ZaiAdapter(),
+    getFrontmatterFields: (settings) => ({
+      model: settings.zaiDefaultModel,
+      url: settings.zaiUrl,
+      temperature: settings.zaiDefaultTemperature,
+      max_tokens: settings.zaiDefaultMaxTokens,
+    }),
   },
 ] as const;
 
@@ -132,4 +180,11 @@ export function getProviderApiKey(settings: ChatGPT_MDSettings, provider: Provid
 
 export function getProviderUrl(settings: ChatGPT_MDSettings, provider: ProviderDefinition): string {
   return settings[provider.urlSetting] || provider.defaultUrl;
+}
+
+export function getProviderFrontmatterFields(
+  providerId: string,
+  settings: ChatGPT_MDSettings
+): Record<string, unknown> {
+  return findProviderDefinition(providerId)?.getFrontmatterFields(settings) || {};
 }
