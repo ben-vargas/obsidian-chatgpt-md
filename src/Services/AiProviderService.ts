@@ -23,13 +23,7 @@ import { generateText, LanguageModel, streamText } from "ai";
 
 // Adapters
 import { AiProviderConfig, ProviderAdapter, ProviderType } from "./Adapters/ProviderAdapter";
-import { OpenAIAdapter } from "./Adapters/OpenAIAdapter";
-import { AnthropicAdapter } from "./Adapters/AnthropicAdapter";
-import { OllamaAdapter } from "./Adapters/OllamaAdapter";
-import { OpenRouterAdapter } from "./Adapters/OpenRouterAdapter";
-import { GeminiAdapter } from "./Adapters/GeminiAdapter";
-import { LmStudioAdapter } from "./Adapters/LmStudioAdapter";
-import { ZaiAdapter } from "./Adapters/ZaiAdapter";
+import { createProviderAdapters } from "./Providers/ProviderRegistry";
 
 // Constants
 import { NEWLINE, ROLE_USER, TITLE_INFERENCE_ERROR_HEADER, TRUNCATION_ERROR_INDICATOR } from "src/Constants";
@@ -67,16 +61,8 @@ export class AiProviderService implements IAiApiService {
     this.apiService = new ApiService(this.errorService, this.notificationService);
     this.apiAuthService = new ApiAuthService(this.notificationService);
 
-    // Register all adapters
-    this.adapters = new Map<ProviderType, ProviderAdapter>([
-      ["openai", new OpenAIAdapter()],
-      ["anthropic", new AnthropicAdapter()],
-      ["ollama", new OllamaAdapter()],
-      ["openrouter", new OpenRouterAdapter()],
-      ["gemini", new GeminiAdapter()],
-      ["lmstudio", new LmStudioAdapter()],
-      ["zai", new ZaiAdapter()],
-    ]);
+    // Register all adapters from the provider registry
+    this.adapters = createProviderAdapters();
 
     // Default to OpenAI
     this.currentAdapter = this.adapters.get("openai")!;

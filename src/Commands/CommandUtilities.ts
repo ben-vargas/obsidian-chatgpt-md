@@ -2,26 +2,9 @@ import { Notice } from "obsidian";
 import { isValidApiKey } from "src/Services/ApiAuthService";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { IAiApiService } from "src/Types/AiTypes";
-import {
-  AI_SERVICE_ANTHROPIC,
-  AI_SERVICE_GEMINI,
-  AI_SERVICE_LMSTUDIO,
-  AI_SERVICE_OLLAMA,
-  AI_SERVICE_OPENAI,
-  AI_SERVICE_OPENROUTER,
-  AI_SERVICE_ZAI,
-  FETCH_MODELS_TIMEOUT_MS,
-} from "src/Constants";
+import { FETCH_MODELS_TIMEOUT_MS } from "src/Constants";
 import { getApiUrlsFromFrontmatter } from "src/Utilities/FrontmatterHelpers";
-import {
-  DEFAULT_ANTHROPIC_CONFIG,
-  DEFAULT_GEMINI_CONFIG,
-  DEFAULT_LMSTUDIO_CONFIG,
-  DEFAULT_OLLAMA_CONFIG,
-  DEFAULT_OPENAI_CONFIG,
-  DEFAULT_OPENROUTER_CONFIG,
-  DEFAULT_ZAI_CONFIG,
-} from "src/Services/DefaultConfigs";
+import { getProviderDefinitions, getProviderUrl } from "src/Services/Providers/ProviderRegistry";
 
 /**
  * Get the API URLs for all AI services based on frontmatter
@@ -35,15 +18,9 @@ export function getAiApiUrls(frontmatter: any): { [key: string]: string } {
  * Get default API URLs for all services from settings
  */
 export function getDefaultApiUrls(settings: ChatGPT_MDSettings): { [key: string]: string } {
-  return {
-    [AI_SERVICE_OPENAI]: settings.openaiUrl || DEFAULT_OPENAI_CONFIG.url,
-    [AI_SERVICE_OPENROUTER]: settings.openrouterUrl || DEFAULT_OPENROUTER_CONFIG.url,
-    [AI_SERVICE_OLLAMA]: settings.ollamaUrl || DEFAULT_OLLAMA_CONFIG.url,
-    [AI_SERVICE_LMSTUDIO]: settings.lmstudioUrl || DEFAULT_LMSTUDIO_CONFIG.url,
-    [AI_SERVICE_ANTHROPIC]: settings.anthropicUrl || DEFAULT_ANTHROPIC_CONFIG.url,
-    [AI_SERVICE_GEMINI]: settings.geminiUrl || DEFAULT_GEMINI_CONFIG.url,
-    [AI_SERVICE_ZAI]: settings.zaiUrl || DEFAULT_ZAI_CONFIG.url,
-  };
+  return Object.fromEntries(
+    getProviderDefinitions().map((provider) => [provider.id, getProviderUrl(settings, provider)])
+  );
 }
 
 /**
@@ -62,100 +39,22 @@ export async function fetchAvailableModels(
   }
 
   try {
-    const promises: Promise<string[]>[] = [];
+    const settings = settingsService.getSettings();
+    const promises = getProviderDefinitions()
+      .map((provider) => {
+        const providerApiKey = apiAuthService.getApiKey(settings, provider.id);
+        if (provider.requiresApiKey && !isValidApiKey(providerApiKey)) {
+          return null;
+        }
 
-    // Add Ollama promise (always fetched)
-    promises.push(
-      withTimeout(
-        aiService.fetchAvailableModels(urls[AI_SERVICE_OLLAMA], undefined, settingsService.getSettings(), "ollama"),
-        FETCH_MODELS_TIMEOUT_MS,
-        []
-      )
-    );
-
-    // Add LM Studio promise (always fetched, no API key required)
-    promises.push(
-      withTimeout(
-        aiService.fetchAvailableModels(urls[AI_SERVICE_LMSTUDIO], undefined, settingsService.getSettings(), "lmstudio"),
-        FETCH_MODELS_TIMEOUT_MS,
-        []
-      )
-    );
-
-    // Conditionally add OpenAI promise
-    if (isValidApiKey(apiKey)) {
-      promises.push(
-        withTimeout(
-          aiService.fetchAvailableModels(urls[AI_SERVICE_OPENAI], apiKey, settingsService.getSettings(), "openai"),
+        return withTimeout(
+          aiService.fetchAvailableModels(urls[provider.id], providerApiKey, settings, provider.id),
           FETCH_MODELS_TIMEOUT_MS,
           []
-        )
-      );
-    }
+        );
+      })
+      .filter((promise): promise is Promise<string[]> => promise !== null);
 
-    // Conditionally add OpenRouter promise
-    if (isValidApiKey(openrouterApiKey)) {
-      promises.push(
-        withTimeout(
-          aiService.fetchAvailableModels(
-            urls[AI_SERVICE_OPENROUTER],
-            openrouterApiKey,
-            settingsService.getSettings(),
-            "openrouter"
-          ),
-          FETCH_MODELS_TIMEOUT_MS,
-          []
-        )
-      );
-    }
-
-    // Conditionally add Anthropic promise
-    const anthropicApiKey = apiAuthService.getApiKey(settingsService.getSettings(), AI_SERVICE_ANTHROPIC);
-    if (isValidApiKey(anthropicApiKey)) {
-      promises.push(
-        withTimeout(
-          aiService.fetchAvailableModels(
-            urls[AI_SERVICE_ANTHROPIC],
-            anthropicApiKey,
-            settingsService.getSettings(),
-            "anthropic"
-          ),
-          FETCH_MODELS_TIMEOUT_MS,
-          []
-        )
-      );
-    }
-
-    // Conditionally add Gemini promise
-    const geminiApiKey = apiAuthService.getApiKey(settingsService.getSettings(), AI_SERVICE_GEMINI);
-    if (isValidApiKey(geminiApiKey)) {
-      promises.push(
-        withTimeout(
-          aiService.fetchAvailableModels(
-            urls[AI_SERVICE_GEMINI],
-            geminiApiKey,
-            settingsService.getSettings(),
-            "gemini"
-          ),
-          FETCH_MODELS_TIMEOUT_MS,
-          []
-        )
-      );
-    }
-
-    // Conditionally add Z.AI promise
-    const zaiApiKey = apiAuthService.getApiKey(settingsService.getSettings(), AI_SERVICE_ZAI);
-    if (isValidApiKey(zaiApiKey)) {
-      promises.push(
-        withTimeout(
-          aiService.fetchAvailableModels(urls[AI_SERVICE_ZAI], zaiApiKey, settingsService.getSettings(), "zai"),
-          FETCH_MODELS_TIMEOUT_MS,
-          []
-        )
-      );
-    }
-
-    // Fetch all models in parallel and flatten the results
     const results = await Promise.all(promises);
     return results.flat();
   } catch (error) {
