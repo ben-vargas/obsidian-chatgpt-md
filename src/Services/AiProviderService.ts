@@ -51,6 +51,12 @@ export class AiProviderService implements IAiApiService {
   // AI SDK provider instance (created per request)
   private provider?: AiProviderInstance;
 
+  // Identifies the inputs the cached provider was built from. The provider is
+  // rebuilt whenever the adapter type, base URL or API key change so a provider
+  // created for one request (e.g. a chat) is never reused for another that
+  // needs a different provider (e.g. inferring a title with OpenRouter).
+  private providerCacheKey?: string;
+
   // Static callback for saving settings
   private static saveSettingsCallback: (() => Promise<void>) | null = null;
 
@@ -212,6 +218,14 @@ export class AiProviderService implements IAiApiService {
         throw new Error("No active file found");
       }
 
+      // Select the provider adapter from the configured model BEFORE resolving
+      // the API key. Title inference does not go through callAiAPI (which is
+      // where the adapter is normally selected), so without this it falls back
+      // to the default OpenAI adapter and fails for other providers such as
+      // OpenRouter (wrong API key, base URL and model-name handling).
+      const modelString = (settings as { model?: string }).model ?? "";
+      this.setProviderFromModel(modelString);
+
       const apiKey = this.getApiKeyFromSettings(settings);
       const titleResponse = await this.inferTitleFromMessages(apiKey, messages, settings);
 
@@ -347,7 +361,12 @@ export class AiProviderService implements IAiApiService {
    * - The AI SDK appends the final endpoint (e.g., /chat/completions) to the baseURL
    */
   private ensureProvider(apiKey: string | undefined, config: AiProviderConfig): void {
-    if (this.provider) {
+    // Rebuild the provider whenever the adapter, URL or key differ from the
+    // cached one. A plain "create once" cache would reuse a provider built for
+    // a different request and break, e.g. inferring a title for an OpenRouter
+    // note after a chat that used a different provider.
+    const cacheKey = `${this.currentAdapter.type}|${config.url}|${apiKey ?? ""}`;
+    if (this.provider && this.providerCacheKey === cacheKey) {
       return;
     }
 
@@ -364,6 +383,7 @@ export class AiProviderService implements IAiApiService {
       fetch: customFetch,
       name: this.currentAdapter.type, // Required for OpenAICompatible providers
     });
+    this.providerCacheKey = cacheKey;
   }
 
   /**
