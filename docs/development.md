@@ -10,321 +10,157 @@ AI SDK 7 packages are ESM-only. Source code and build scripts use ESM imports, w
 ## Build and Development Commands
 
 ```bash
-# Development (watch mode)
+# Development/watch build
 yarn dev
 
-# Production build (includes TypeScript type checking)
+# Production build with type checking
 yarn build
 
-# Lint TypeScript files
-yarn lint
+# Tests
+yarn test --runInBand
+yarn test:watch
+yarn test:coverage
 
-# Fix linting issues automatically
+# Linting
+yarn lint
 yarn lint:fix
 
-# Build with bundle analysis
+# Bundle analysis
 yarn build:analyze
-
-# Analyze existing bundle
 yarn analyze
-
-# Build and show size
 yarn build:size
-
-# Full analysis (build + analyze)
 yarn build:full-analysis
-
-# Testing
-yarn test              # Run tests
-yarn test:watch        # Run tests in watch mode
-yarn test:coverage     # Run tests with coverage
 ```
 
-## Build Process
+Use Yarn for validation unless package-manager policy changes.
 
-The build process uses **esbuild** for fast bundling:
+## Build process
 
-- **Entry point**: `src/main.ts`
-- **Output**: `main.js`
+The plugin is bundled with esbuild.
 
-### ESBuild Configuration
+- Entry point: `src/main.ts`
+- Output: `main.js`
+- Obsidian/Electron/CodeMirror modules are externalized.
+- Production builds type-check with `tsc -noEmit -skipLibCheck`, then bundle with esbuild.
+- Development builds run esbuild in watch mode.
 
-**esbuild.config.mjs** settings:
+`main.js` is generated. Do not edit it by hand.
 
-**Externals**: Obsidian API, Electron, CodeMirror modules marked as external
+## Current project structure
 
-**Production mode**:
-
-- Aggressive minification (whitespace, identifiers, syntax)
-- Tree shaking enabled
-- Console.log statements removed via `drop: ["console", "debugger"]`
-- Legal comments stripped
-- Pure annotations for better tree shaking
-- Bundle analysis via metafile (if `ANALYZE=true`)
-
-**Development mode**:
-
-- Watch mode for automatic rebuilds
-- Inline sourcemaps for debugging
-- No minification
-
-**Platform**: Node (uses Node.js built-in modules)
-
-**Target**: ES2018
-
-**Format**: CommonJS (required by Obsidian)
-
-## TypeScript
-
-- **Version**: TypeScript 5.9.3
-- **Target**: ES2018
-- **Type checking**: `tsc -noEmit -skipLibCheck`
-- **Linting**: ESLint for code quality
-
-## Project Structure
-
-```
+```text
 src/
-├── core/              # Core infrastructure
-│   ├── ServiceLocator.ts
-│   ├── CommandRegistry.ts
-│   └── CLAUDE.md      # Auto-loaded when working here
-├── Services/          # Service implementations
-│   ├── MessageService.ts
-│   ├── EditorService.ts
-│   ├── AiService.ts
-│   ├── OpenAiService.ts
-│   └── CLAUDE.md      # Auto-loaded when working here
-├── Views/             # UI components
-│   ├── AiModelSuggestModal.ts
-│   └── CLAUDE.md      # Auto-loaded when working here
-├── Models/            # TypeScript interfaces
-│   ├── Config.ts
-│   └── CLAUDE.md      # Auto-loaded when working here
-├── Utilities/         # Helper functions
-├── Constants.ts       # Global constants
-└── main.ts           # Plugin entry point
+├── main.ts                         # Plugin entry point
+├── Constants.ts                    # Shared constants and command IDs
+├── core/
+│   └── ServiceContainer.ts         # Explicit dependency wiring
+├── Commands/
+│   ├── CommandHandler.ts           # Command interfaces
+│   ├── CommandRegistrar.ts         # Registration helpers
+│   └── *Handler.ts                 # Command implementations
+├── Services/
+│   ├── AiProviderService.ts        # Unified AI request facade
+│   ├── Adapters/                   # Provider-specific adapters
+│   ├── SettingsService.ts          # Settings + effective frontmatter config
+│   ├── ToolService.ts              # Tool registration/approval/execution
+│   └── *.ts                        # Editor, file, message, API, template services
+├── Views/                          # Obsidian settings tab and modals
+├── Models/                         # Internal data models
+├── Types/                          # Cross-service type contracts
+├── Utilities/                      # Stateless helpers
+└── __mocks__/                      # Jest mocks
 ```
 
-## Common Development Tasks
+## Architecture overview
 
-### Adding a New AI Service
+### ServiceContainer
 
-1. **Create service file** in `Services/` extending `BaseAiService`
+`src/core/ServiceContainer.ts` is the only place where services are wired together. It uses explicit constructor injection and exposes service instances as readonly properties.
 
-   ```typescript
-   export class NewService extends BaseAiService {
-     protected serviceType = AI_SERVICE_NEW;
-     protected getSystemMessageRole() {
-       return "system";
-     }
-     protected supportsSystemField() {
-       return true;
-     }
-   }
-   ```
+Do not add a string-based service locator or decorator-based DI framework.
 
-2. **Add service constant** to `Constants.ts`
+### Command handlers
 
-   ```typescript
-   export const AI_SERVICE_NEW = "newservice";
-   ```
+Commands live in `src/Commands/`. They should:
 
-3. **Add API endpoint** to `API_ENDPOINTS` in `Constants.ts`
+- read the editor/view/settings state they need,
+- call services,
+- show high-level status/notifications,
+- avoid embedding provider/tool business logic.
 
-   ```typescript
-   [AI_SERVICE_NEW]: "/api/endpoint"
-   ```
+Use `CommandRegistrar` where possible.
 
-4. **Register in ServiceLocator** (`getAiApiService()` method)
+### Provider adapters
 
-   ```typescript
-   case AI_SERVICE_NEW:
-     return new NewService(...);
-   ```
+AI providers are represented by adapters in `src/Services/Adapters/` and orchestrated by `AiProviderService`.
 
-5. **Add configuration** to `Models/Config.ts`
+Adapters own provider-specific behavior such as:
 
-   ```typescript
-   interface NewServiceSettings {
-     newServiceDefaultModel: string;
-     newServiceUrl: string;
-   }
-   ```
+- auth headers,
+- model list parsing,
+- default base URL,
+- system-message role,
+- API path suffix,
+- tool support flags.
 
-6. **Add fetch function** for available models (if applicable)
+### Settings/frontmatter
 
-   ```typescript
-   export async function fetchAvailableNewServiceModels(url, apiKey) {
-     // Implementation
-   }
-   ```
+`SettingsService` loads plugin settings, runs migrations, and resolves effective per-note config. Preserve merge priority:
 
-7. **Update CommandRegistry** to fetch models from new service
+1. provider defaults
+2. default chat frontmatter
+3. global settings
+4. agent frontmatter/body
+5. note frontmatter
 
-### Testing Locally
+## Common tasks
 
-1. **Build the plugin**
+### Add a command
+
+1. Create a handler in `src/Commands/`.
+2. Implement `EditorCommandHandler`, `EditorViewCommandHandler`, or `CallbackCommandHandler` from `CommandHandler.ts`.
+3. Register the handler in `src/main.ts`.
+4. Add/update tests for extracted pure logic when possible.
+
+### Add provider behavior
+
+See `docs/CREATE_SERVICE.md`. Despite the historical filename, provider support now uses adapters rather than one service class per provider.
+
+### Add a setting
+
+1. Update `ChatGPT_MDSettings` in `src/Models/Config.ts`.
+2. Update `DEFAULT_SETTINGS`.
+3. Update `ChatGPT_MDSettingsTab` UI schema/rendering.
+4. Add migration logic if existing user data needs conversion.
+5. Document the setting if user-facing.
+
+### Test locally in Obsidian
+
+1. Build:
 
    ```bash
    yarn build
    ```
 
-2. **Copy to Obsidian plugins folder**
+2. Reload Obsidian or copy the plugin folder into a test vault's `.obsidian/plugins/chatgpt-md/` folder.
+3. Open Obsidian developer tools and check the console.
 
-   ```bash
-   # Example path (adjust for your setup)
-   cp -r . ~/.obsidian/plugins/chatgpt-md/
-   ```
+## Code style
 
-3. **Reload Obsidian**
-   - Use Command Palette: "Reload app without saving"
-   - Or restart Obsidian
+- TypeScript only for source changes.
+- Prefer `async`/`await`.
+- Prefer small pure helpers for refactors.
+- Avoid `any` in new code; use `unknown` plus small type guards at external boundaries.
+- Do not add new dependencies unless the benefit is clear and documented.
 
-4. **Check console for errors**
-   - Open Developer Tools: Ctrl+Shift+I (Windows/Linux) or Cmd+Option+I (Mac)
+## Refactoring guidance
 
-### Debugging
+Known maintainability targets are documented in `planning/maintainability-review/`.
 
-**Development mode**:
+Important near-term targets:
 
-```bash
-yarn dev
-```
-
-- Auto-rebuilds on file changes
-- Inline sourcemaps for debugging
-- Console.log statements preserved
-
-**Browser console in Obsidian**:
-
-- Press Ctrl+Shift+I (Windows/Linux) or Cmd+Option+I (Mac)
-- Check Console tab for errors
-- Use breakpoints in Sources tab
-
-**Common debugging patterns**:
-
-```typescript
-console.log("[ChatGPT MD] Debug message:", data);
-console.error("[ChatGPT MD] Error:", error);
-```
-
-Note: Console logs are removed in production builds.
-
-## Code Style
-
-### ESLint Configuration
-
-Rules enforced:
-
-- No `require()` imports (use ES6 `import` or dynamic `import()`)
-- Unused variables must be prefixed with `_` (e.g., `_error`)
-- TypeScript strict mode
-- No `any` types (prefer explicit types)
-
-### Fix linting issues
-
-```bash
-yarn lint:fix
-```
-
-## Platform Considerations
-
-### Desktop vs Mobile
-
-Code must work on both platforms:
-
-**Desktop** (Electron):
-
-- Node.js modules available
-- Can use `http`, `https`, `url` modules
-- Better CORS handling via `requestStream.ts`
-
-**Mobile** (iOS/Android):
-
-- No Node.js modules
-- Must use Web APIs only
-- Falls back to `fetch()` for HTTP
-
-**Platform detection**:
-
-```typescript
-import { Platform } from "obsidian";
-
-if (Platform.isMobile) {
-  // Mobile-specific code
-} else {
-  // Desktop-specific code
-}
-```
-
-### Dynamic Imports for Node.js Modules
-
-Pattern used in `requestStream.ts`:
-
-```typescript
-(async () => {
-  try {
-    const http = await import("http");
-    // Use http module
-  } catch (_error) {
-    // Fallback for mobile
-  }
-})();
-```
-
-## Performance Optimization
-
-### Production Build
-
-Optimizations applied:
-
-- Tree shaking removes unused code
-- Minification reduces bundle size
-- Dead code elimination
-- Console statements stripped
-
-### Bundle Analysis
-
-```bash
-yarn build:analyze
-```
-
-Shows:
-
-- Output bundle size
-- Largest source files
-- Dependency sizes
-
-### Code Splitting
-
-Not currently implemented but could be added for:
-
-- Lazy loading AI service implementations
-- On-demand UI component loading
-
-## Dependencies
-
-**Production**: None (all peer dependencies)
-
-**Dev Dependencies**:
-
-- `esbuild` - Fast bundler
-- `typescript` - Type checking
-- `eslint` - Code linting
-- `jest`, `ts-jest` - Testing framework
-- `husky`, `lint-staged` - Git hooks and pre-commit checks
-- `obsidian` - Obsidian API types
-- `@codemirror/*` - Editor API types
-- `@types/node` - Node.js types
-
-## Release Process
-
-1. Update version in `manifest.json` and `package.json`
-2. Run `yarn test` to ensure all tests pass
-3. Run `yarn build` to create production bundle
-4. Test in Obsidian
-5. Commit changes
-6. Create git tag
-7. Push to GitHub
-8. Create release with `main.js`, `manifest.json`, `styles.css`
+- central provider registry,
+- smaller `AiProviderService`,
+- smaller/data-driven settings UI,
+- smaller `ToolService`,
+- debug-gated logging.

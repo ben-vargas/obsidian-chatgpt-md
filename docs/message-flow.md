@@ -1,117 +1,146 @@
 # Message Flow
 
-Complete flow from user input to AI response - a cross-cutting concern that touches all layers.
+This document describes the current high-level flow from an Obsidian note to an AI response.
 
-## Main Chat Flow
+## Main chat flow
 
-### 1. User Invokes "Chat" Command
+### 1. User invokes the Chat command
 
-User presses hotkey or selects command from palette.
+The user runs the ChatGPT MD chat command from a hotkey or the Obsidian command palette.
 
-### 2. CommandRegistry.registerChatCommand() Triggered
+### 2. `ChatHandler.execute()` runs
 
-**Location**: `src/core/CommandRegistry.ts`
+Location: `src/Commands/ChatHandler.ts`
 
-Command handler executes:
+The handler:
 
-- Gets `EditorService` from `ServiceLocator`
-- Retrieves settings from `SettingsService`
-- Parses frontmatter from current note
+- gets settings from `SettingsService`,
+- asks `EditorService` for merged frontmatter/effective config,
+- creates a per-request `AiProviderService` instance via `ServiceContainer.aiProviderService()`,
+- registers that instance with `StopStreamingHandler`,
+- extracts messages from the editor,
+- adds agent/system messages,
+- calls the AI provider facade.
 
-### 3. EditorService.getMessagesFromEditor() Extracts Messages
+### 3. Effective frontmatter config is resolved
 
-**Location**: `src/Services/EditorService.ts`
+Main locations:
 
-EditorService orchestrates extraction:
+- `src/Services/EditorService.ts`
+- `src/Services/SettingsService.ts`
+- `src/Services/FrontmatterManager.ts`
+- `src/Utilities/FrontmatterHelpers.ts`
 
-- Reads editor content
-- Passes to MessageService for processing
+Config is merged in this priority order:
 
-### 4. MessageService Parses Content
+1. provider defaults
+2. default chat frontmatter from global settings
+3. global plugin settings
+4. referenced agent frontmatter/body
+5. note frontmatter
 
-**Location**: `src/Services/MessageService.ts`
+The resolved config includes the model, provider/service, API URL, temperature, token limits, streaming behavior, and any system commands.
 
-MessageService performs:
+### 4. Messages are extracted from the note
 
-- **Split messages** - By `<hr class="__chatgpt_plugin">` separator
-- **Extract roles** - Parse `role::assistant` or `role::user`
-- **Find links** - Detect `[[Wiki Links]]` and `[Markdown](links)`
-- **Remove comments** - Filter `=begin-chatgpt-md-comment` blocks
-- **Remove frontmatter** - Strip YAML section
+Main locations:
 
-### 5. Linked Notes Fetched
+- `src/Services/EditorService.ts`
+- `src/Services/MessageService.ts`
+- `src/Utilities/MessageHelpers.ts`
+- `src/Utilities/TextHelpers.ts`
 
-**Location**: `src/Services/FileService.ts`
+Message extraction handles:
 
-For each link found:
+- chat separators,
+- role headings such as `role::user` and `role::assistant`,
+- YAML frontmatter removal,
+- comment block filtering,
+- linked-note/context handling where supported.
 
-- FileService retrieves linked note content
-- Content added to message context
-- Prevents circular references
+### 5. System messages are prepended
 
-### 6. Frontmatter Merged with Global Settings
+Location: `src/Commands/ChatHandler.ts`
 
-**Location**: `src/Services/FrontmatterService.ts`
+System message sources include:
 
-FrontmatterService:
+- agent body resolved by `SettingsService`,
+- `system_commands` from effective frontmatter.
 
-- Takes note frontmatter (YAML)
-- Merges with global plugin settings
-- Per-note settings override globals
-- Determines AI service from `model` field
+### 6. API key and URL are selected
 
-### 7. AI Service Retrieved
+Main locations:
 
-**Location**: `src/core/ServiceLocator.ts`
+- `src/Services/ApiAuthService.ts`
+- `src/Commands/CommandUtilities.ts`
+- `src/Utilities/FrontmatterHelpers.ts`
 
-ServiceLocator:
+The API key is selected for the resolved provider. The effective API URL comes from frontmatter/settings/defaults.
 
-- Parses model prefix (`ollama@`, `openrouter@`, etc.) or defaults to OpenAI
-- Returns appropriate service via `getAiApiService(serviceType)`
+### 7. `AiProviderService.callAiAPI()` dispatches the request
 
-### 8. Service Calls API
+Location: `src/Services/AiProviderService.ts`
 
-**Location**: `src/Services/*Service.ts`
+The provider facade:
 
-Selected AI service:
+- selects the adapter from the model prefix,
+- creates/caches the AI SDK provider for the current provider/base URL/API key,
+- decides streaming vs non-streaming mode,
+- prepares system/user/assistant messages for the selected provider,
+- attaches tools when enabled and allowed for the model,
+- calls the AI SDK.
 
-- Constructs API request with messages
-- Applies frontmatter configuration (temperature, max_tokens, etc.)
-- Gets API key from ApiAuthService
-- Uses ApiService to make HTTP request
-- Handles streaming vs non-streaming
+Provider-specific behavior comes from `src/Services/Adapters/*Adapter.ts`.
 
-### 9. Response Streamed Back to Editor
+### 8. Streaming or complete response is written to the editor
 
-**Location**: `src/Services/EditorService.ts`
+Main locations:
 
-EditorService.processResponse():
+- `src/Services/AiProviderService.ts`
+- `src/Services/StreamingHandler.ts`
+- `src/Services/MessageService.ts`
+- `src/Services/EditorService.ts`
 
-- Receives streaming chunks or complete response
-- Inserts content at cursor or end of file (based on `generateAtCursor` setting)
-- Formats with heading prefix
-- Adds model name to response heading
-- Updates editor in real-time during streaming
+In streaming mode, chunks are inserted as they arrive. In non-streaming mode, the completed response is inserted once.
 
-### 10. Optional Title Inference
+The response is formatted using the configured heading level and assistant role marker.
 
-**Location**: `src/Services/*Service.ts` (inferTitle method)
+### 9. Optional tool calls run with approval
 
-If configured (`autoInferTitle: true`) and conditions met:
+Main locations:
 
-- Note title is timestamp format
-- More than 4 messages exchanged
-- Service calls title inference
-- Renames note file with inferred title
+- `src/Services/ToolService.ts`
+- `src/Services/VaultSearchService.ts`
+- `src/Services/WebSearchService.ts`
+- `src/Views/*ApprovalModal.ts`
 
-## Message Format
+When tool calling is enabled and the model is allowed:
 
-### In Editor
+1. the model requests a tool call,
+2. the user reviews/approves what data may be shared,
+3. the tool executes,
+4. approved results are returned to the model,
+5. the final answer is inserted into the note.
+
+Do not bypass approval flows.
+
+### 10. Optional title inference runs
+
+Main locations:
+
+- `src/Commands/ChatHandler.ts`
+- `src/Services/AiProviderService.ts`
+- `src/Services/FileService.ts`
+
+If `autoInferTitle` is enabled and the current note title looks like a timestamp, the provider infers a title after enough messages have been exchanged. The file is renamed when inference succeeds.
+
+## Example note format
 
 ```markdown
 ---
-model: gpt-5-mini
+model: openai@gpt-4.1-mini
 temperature: 0.7
+stream: true
 ---
 
 # role::user
@@ -120,236 +149,28 @@ What is the capital of France?
 
 <hr class="__chatgpt_plugin">
 
-# role::assistant [gpt-5-mini]
+# role::assistant [openai@gpt-4.1-mini]
 
 The capital of France is Paris.
 ```
 
-### Sent to API (OpenAI format)
+## Simplified sequence
 
-```json
-[
-  {
-    "role": "system",
-    "content": "You are a helpful assistant. You're chatting with a user in Obsidian..."
-  },
-  {
-    "role": "user",
-    "content": "What is the capital of France?"
-  }
-]
+```text
+User command
+  -> ChatHandler
+  -> EditorService / SettingsService
+  -> MessageService
+  -> ApiAuthService + URL helpers
+  -> AiProviderService
+  -> ProviderAdapter + AI SDK
+  -> StreamingHandler / MessageService
+  -> Editor
 ```
 
-### Different Service Formats
+## Important maintenance notes
 
-**Anthropic**:
-
-```json
-{
-  "system": "You are a helpful assistant...",
-  "messages": [{ "role": "user", "content": "What is the capital of France?" }]
-}
-```
-
-**Gemini**:
-
-```json
-{
-  "contents": [{ "role": "user", "parts": [{ "text": "What is the capital of France?" }] }],
-  "systemInstruction": {
-    "parts": [{ "text": "You are a helpful assistant..." }]
-  }
-}
-```
-
-## Streaming Flow
-
-### Desktop (Node.js)
-
-**Location**: `src/Services/requestStream.ts` + `src/Services/ApiService.ts`
-
-1. `ApiService.streamSSE()` called
-2. Uses `requestStream()` (Node.js http/https modules)
-3. Bypasses CORS restrictions
-4. Returns Web Streams API compatible response
-5. SSE chunks parsed by ApiResponseParser
-6. Chunks passed to callback
-7. EditorService updates editor in real-time
-
-### Mobile (Web API)
-
-1. `ApiService.streamSSE()` called
-2. Falls back to `fetch()` API
-3. Subject to browser CORS policies
-4. Rest of flow identical to desktop
-
-## Error Handling Flow
-
-At each stage:
-
-- **ErrorService** processes errors
-- **NotificationService** shows user messages
-- Platform-specific notifications (Notice vs status bar)
-- Errors don't crash plugin, gracefully handled
-
-**Common error points**:
-
-1. Network failure → `CHAT_ERROR_MESSAGE_NO_CONNECTION`
-2. 401 Unauthorized → `CHAT_ERROR_MESSAGE_401`
-3. 404 Not Found → `CHAT_ERROR_MESSAGE_404`
-4. Truncation → `TRUNCATION_ERROR_INDICATOR`
-
-## Link Context Injection
-
-**Location**: `src/Services/MessageService.ts` → `src/Services/FileService.ts`
-
-When note contains `[[Linked Note]]`:
-
-1. MessageService finds link via regex
-2. FileService retrieves "Linked Note" content
-3. Content added to user message:
-
-   ```
-   Original message
-
-   ---
-   Context from [[Linked Note]]:
-   [Note content here]
-   ```
-
-4. Sent to AI for richer context
-
-**Prevents**:
-
-- Circular references (tracks already-included notes)
-- Including http:// URLs (external links ignored)
-
-## Title Inference Flow
-
-**Location**: AI service `inferTitle()` method
-
-When triggered:
-
-1. Check conditions:
-   - Auto-inference enabled
-   - Note has timestamp name format
-   - More than 4 messages in conversation
-
-2. Service constructs title inference prompt:
-
-   ```
-   Based on this conversation, suggest a concise title in [language]:
-   [Conversation history]
-   ```
-
-3. Calls AI with title inference parameters:
-   - Lower temperature (0.3)
-   - Lower max_tokens (50)
-   - Same model as chat
-
-4. Receives suggested title
-
-5. EditorService renames note file:
-   - Validates title (no special chars)
-   - Updates file path
-   - Maintains internal references
-
-## Service-Specific Response Parsing
-
-**Location**: `src/Services/ApiResponseParser.ts`
-
-Different APIs return different formats:
-
-**OpenAI/OpenRouter**:
-
-```json
-{
-  "choices": [
-    {
-      "delta": { "content": "text chunk" }
-    }
-  ]
-}
-```
-
-**Ollama**:
-
-```json
-{
-  "message": { "content": "text chunk" }
-}
-```
-
-**Anthropic**:
-
-```json
-{
-  "type": "content_block_delta",
-  "delta": { "text": "text chunk" }
-}
-```
-
-**Gemini**:
-
-```json
-{
-  "candidates": [
-    {
-      "content": {
-        "parts": [{ "text": "text chunk" }]
-      }
-    }
-  ]
-}
-```
-
-ApiResponseParser handles all formats and returns unified content.
-
-## Data Flow Diagram
-
-```
-User Command
-    ↓
-CommandRegistry
-    ↓
-EditorService ←→ MessageService ←→ FileService
-    ↓                                    ↓
-FrontmatterService              (Linked Notes)
-    ↓
-ServiceLocator
-    ↓
-AI Service (OpenAI/Ollama/etc)
-    ↓
-ApiService ←→ ApiAuthService
-    ↓
-requestStream (Desktop) / fetch (Mobile)
-    ↓
-API Response (Streaming SSE)
-    ↓
-ApiResponseParser
-    ↓
-EditorService (Insert Response)
-    ↓
-Editor Updated
-    ↓
-Optional: Title Inference
-```
-
-## Performance Considerations
-
-**Parallel Operations**:
-
-- Model fetching happens in background on plugin load
-- Multiple models fetched in parallel (6s timeout each)
-
-**Streaming Benefits**:
-
-- Real-time response display (better UX)
-- Partial content shown immediately
-- Can be aborted mid-stream
-
-**Token Efficiency**:
-
-- Link context only included when needed
-- Comment blocks excluded from API calls
-- Frontmatter stripped before sending
+- Commands should remain thin orchestrators.
+- Provider-specific behavior should stay in adapters where possible.
+- Effective config priority is user-visible behavior; add tests before changing it.
+- Tool approval is a privacy boundary and must be preserved.
