@@ -1,18 +1,25 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
+    "rootDir": ".",
+    "paths": {
+      "src/*": ["./src/*"]
+    },
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
-    "target": "ES6",
+    "target": "ES2020",
     "allowJs": true,
     "noImplicitAny": true,
-    "moduleResolution": "node",
+    "moduleResolution": "Bundler",
     "importHelpers": true,
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "strictNullChecks": true,
-    "lib": ["DOM", "ES5", "ES6", "ES7"]
+    "strictPropertyInitialization": false,
+    "useUnknownInCatchVariables": false,
+    "types": ["node"],
+    "lib": ["DOM", "ES2020"]
   },
-  "include": ["**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/__mocks__/**"]
 }

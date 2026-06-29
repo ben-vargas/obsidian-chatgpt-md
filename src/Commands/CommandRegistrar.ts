@@ -15,7 +15,7 @@ export class CommandRegistrar {
     const metadata = handler.getCommand();
     this.plugin.addCommand({
       ...metadata,
-      editorCallback: (editor: Editor, _view: MarkdownView) => handler.execute(editor),
+      editorCallback: (editor: Editor) => handler.execute(editor),
     });
   }
 
@@ -26,7 +26,11 @@ export class CommandRegistrar {
     const metadata = handler.getCommand();
     this.plugin.addCommand({
       ...metadata,
-      editorCallback: (editor: Editor, view: MarkdownView) => handler.execute(editor, view),
+      editorCallback: (editor: Editor, view) => {
+        if (view instanceof MarkdownView) {
+          return handler.execute(editor, view);
+        }
+      },
     });
   }
 

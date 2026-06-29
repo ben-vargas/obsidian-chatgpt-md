@@ -33,7 +33,7 @@ export interface ProviderFactoryConfig {
  * Provider factory function type
  * Note: This is a loose type to accommodate different provider factory signatures
  */
-export type ProviderFactory = (config: ProviderFactoryConfig | unknown) => AiProviderInstance;
+export type ProviderFactory = (config: ProviderFactoryConfig) => AiProviderInstance;
 
 /**
  * Interface defining the contract for AI service implementations
