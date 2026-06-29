@@ -8,6 +8,7 @@ import {
   AI_SERVICE_ZAI,
 } from "src/Constants";
 import { ChatGPT_MDSettings } from "src/Models/Config";
+import { findProviderDefinition, getProviderApiKey } from "./Providers/ProviderRegistry";
 import { NotificationService } from "./NotificationService";
 import { validateApiKey as validateApiKeyFormat } from "src/Utilities/InputValidator";
 
@@ -38,24 +39,11 @@ export class ApiAuthService {
    * @returns The API key for the service
    */
   getApiKey(settings: ChatGPT_MDSettings, serviceType: string): string {
-    switch (serviceType) {
-      case AI_SERVICE_OPENAI:
-        return settings.apiKey;
-      case AI_SERVICE_OPENROUTER:
-        return settings.openrouterApiKey;
-      case AI_SERVICE_ANTHROPIC:
-        return settings.anthropicApiKey;
-      case AI_SERVICE_GEMINI:
-        return settings.geminiApiKey;
-      case AI_SERVICE_ZAI:
-        return settings.zaiApiKey;
-      case AI_SERVICE_OLLAMA:
-        return ""; // Ollama doesn't use an API key
-      case AI_SERVICE_LMSTUDIO:
-        return ""; // LM Studio doesn't use an API key
-      default:
-        return "";
+    const provider = findProviderDefinition(serviceType);
+    if (!provider) {
+      return "";
     }
+    return getProviderApiKey(settings, provider) || "";
   }
 
   /**
@@ -65,8 +53,8 @@ export class ApiAuthService {
    * @throws Error if the API key is invalid
    */
   validateApiKey(apiKey: string | undefined, serviceName: string): void {
-    // Skip validation for Ollama and LM Studio as they don't require an API key
-    if (serviceName === AI_SERVICE_OLLAMA || serviceName === AI_SERVICE_LMSTUDIO) {
+    const provider = findProviderDefinition(serviceName);
+    if (provider && !provider.requiresApiKey) {
       return;
     }
 

@@ -1,17 +1,9 @@
 import { Editor, MarkdownView } from "obsidian";
 import { ServiceContainer } from "src/core/ServiceContainer";
 import { AiModelSuggestModal } from "src/Views/AiModelSuggestModel";
-import {
-  AI_SERVICE_ANTHROPIC,
-  AI_SERVICE_GEMINI,
-  AI_SERVICE_LMSTUDIO,
-  AI_SERVICE_OLLAMA,
-  AI_SERVICE_OPENAI,
-  AI_SERVICE_OPENROUTER,
-  AI_SERVICE_ZAI,
-} from "src/Constants";
-import { DEFAULT_ZAI_CONFIG } from "src/Services/DefaultConfigs";
-import { fetchAvailableModels, getAiApiUrls } from "./CommandUtilities";
+import { AI_SERVICE_OPENAI, AI_SERVICE_OPENROUTER } from "src/Constants";
+import { getProviderDefinitions } from "src/Services/Providers/ProviderRegistry";
+import { fetchAvailableModels, getAiApiUrls, getDefaultApiUrls } from "./CommandUtilities";
 
 /**
  * Handler for the model selection command
@@ -53,24 +45,13 @@ export class ModelSelectHandler {
         const openAiKey = apiAuthService.getApiKey(settings, AI_SERVICE_OPENAI);
         const openRouterKey = apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER);
 
-        // Use the same URL structure as initializeAvailableModels
-        const currentUrls: { [key: string]: string } = {
-          [AI_SERVICE_OPENAI]: String(frontmatter.openaiUrl || settings.openaiUrl || getAiApiUrls(frontmatter).openai),
-          [AI_SERVICE_OPENROUTER]: String(
-            frontmatter.openrouterUrl || settings.openrouterUrl || getAiApiUrls(frontmatter).openrouter
-          ),
-          [AI_SERVICE_OLLAMA]: String(frontmatter.ollamaUrl || settings.ollamaUrl || getAiApiUrls(frontmatter).ollama),
-          [AI_SERVICE_LMSTUDIO]: String(
-            frontmatter.lmstudioUrl || settings.lmstudioUrl || getAiApiUrls(frontmatter).lmstudio
-          ),
-          [AI_SERVICE_ANTHROPIC]: String(
-            frontmatter.anthropicUrl || settings.anthropicUrl || getAiApiUrls(frontmatter).anthropic
-          ),
-          [AI_SERVICE_GEMINI]: String(frontmatter.geminiUrl || settings.geminiUrl || getAiApiUrls(frontmatter).gemini),
-          [AI_SERVICE_ZAI]: String(
-            frontmatter.zaiUrl || settings.zaiUrl || getAiApiUrls(frontmatter).zai || DEFAULT_ZAI_CONFIG.url
-          ),
-        };
+        const frontmatterUrls = getAiApiUrls(frontmatter);
+        const currentUrls = Object.fromEntries(
+          getProviderDefinitions().map((provider) => [
+            provider.id,
+            String(frontmatter[provider.urlSetting] || settings[provider.urlSetting] || frontmatterUrls[provider.id]),
+          ])
+        );
 
         const aiService = this.services.aiProviderService();
         const freshModels = await fetchAvailableModels(
@@ -124,15 +105,7 @@ export class ModelSelectHandler {
       const openRouterKey = apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER);
 
       // Use default URLs for initialization, assuming frontmatter isn't available yet
-      const defaultUrls = {
-        [AI_SERVICE_OPENAI]: settings.openaiUrl || getAiApiUrls({}).openai,
-        [AI_SERVICE_OPENROUTER]: settings.openrouterUrl || getAiApiUrls({}).openrouter,
-        [AI_SERVICE_OLLAMA]: settings.ollamaUrl || getAiApiUrls({}).ollama,
-        [AI_SERVICE_LMSTUDIO]: settings.lmstudioUrl || getAiApiUrls({}).lmstudio,
-        [AI_SERVICE_ANTHROPIC]: settings.anthropicUrl || getAiApiUrls({}).anthropic,
-        [AI_SERVICE_GEMINI]: settings.geminiUrl || getAiApiUrls({}).gemini,
-        [AI_SERVICE_ZAI]: settings.zaiUrl || getAiApiUrls({}).zai || DEFAULT_ZAI_CONFIG.url,
-      };
+      const defaultUrls = getDefaultApiUrls(settings);
 
       const aiService = this.services.aiProviderService();
       this.availableModels = await fetchAvailableModels(

@@ -110,8 +110,12 @@ export function getProviderDefinitions(): readonly ProviderDefinition[] {
   return PROVIDER_DEFINITIONS;
 }
 
+export function findProviderDefinition(providerId: string): ProviderDefinition | undefined {
+  return PROVIDER_DEFINITIONS.find((provider) => provider.id === providerId);
+}
+
 export function getProviderDefinition(providerId: AiServiceType): ProviderDefinition {
-  const definition = PROVIDER_DEFINITIONS.find((provider) => provider.id === providerId);
+  const definition = findProviderDefinition(providerId);
   if (!definition) {
     throw new Error(`Unsupported provider: ${providerId}`);
   }
