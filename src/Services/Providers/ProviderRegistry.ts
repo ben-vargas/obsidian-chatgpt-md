@@ -19,6 +19,7 @@ import {
   DEFAULT_ZAI_CONFIG,
 } from "src/Services/DefaultConfigs";
 import { ProviderAdapter } from "src/Services/Adapters/ProviderAdapter";
+import { ProviderFactory } from "src/Types/AiTypes";
 import { OpenAIAdapter } from "src/Services/Adapters/OpenAIAdapter";
 import { AnthropicAdapter } from "src/Services/Adapters/AnthropicAdapter";
 import { GeminiAdapter } from "src/Services/Adapters/GeminiAdapter";
@@ -26,6 +27,11 @@ import { LmStudioAdapter } from "src/Services/Adapters/LmStudioAdapter";
 import { OllamaAdapter } from "src/Services/Adapters/OllamaAdapter";
 import { OpenRouterAdapter } from "src/Services/Adapters/OpenRouterAdapter";
 import { ZaiAdapter } from "src/Services/Adapters/ZaiAdapter";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 export type ApiKeySettingKey = "apiKey" | "openrouterApiKey" | "anthropicApiKey" | "geminiApiKey" | "zaiApiKey";
 
@@ -40,6 +46,7 @@ export interface ProviderDefinition {
   urlSetting: UrlSettingKey;
   defaultUrl: string;
   createAdapter: () => ProviderAdapter;
+  createProviderFactory: () => ProviderFactory;
   getFrontmatterFields: (settings: ChatGPT_MDSettings) => Record<string, unknown>;
 }
 
@@ -51,6 +58,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "ollamaUrl",
     defaultUrl: DEFAULT_OLLAMA_CONFIG.url,
     createAdapter: () => new OllamaAdapter(),
+    createProviderFactory: () => createOpenAICompatible as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       url: settings.ollamaUrl,
       temperature: settings.ollamaDefaultTemperature,
@@ -65,6 +73,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "openaiUrl",
     defaultUrl: DEFAULT_OPENAI_CONFIG.url,
     createAdapter: () => new OpenAIAdapter(),
+    createProviderFactory: () => createOpenAI as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       model: settings.openaiDefaultModel,
       temperature: settings.openaiDefaultTemperature,
@@ -82,6 +91,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "openrouterUrl",
     defaultUrl: DEFAULT_OPENROUTER_CONFIG.url,
     createAdapter: () => new OpenRouterAdapter(),
+    createProviderFactory: () => createOpenRouter as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       model: settings.openrouterDefaultModel,
       temperature: settings.openrouterDefaultTemperature,
@@ -98,6 +108,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "lmstudioUrl",
     defaultUrl: DEFAULT_LMSTUDIO_CONFIG.url,
     createAdapter: () => new LmStudioAdapter(),
+    createProviderFactory: () => createOpenAICompatible as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       url: settings.lmstudioUrl,
       temperature: settings.lmstudioDefaultTemperature,
@@ -114,6 +125,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "anthropicUrl",
     defaultUrl: DEFAULT_ANTHROPIC_CONFIG.url,
     createAdapter: () => new AnthropicAdapter(),
+    createProviderFactory: () => createAnthropic as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       model: settings.anthropicDefaultModel,
       url: settings.anthropicUrl,
@@ -129,6 +141,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "geminiUrl",
     defaultUrl: DEFAULT_GEMINI_CONFIG.url,
     createAdapter: () => new GeminiAdapter(),
+    createProviderFactory: () => createGoogleGenerativeAI as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       model: settings.geminiDefaultModel,
       url: settings.geminiUrl,
@@ -145,6 +158,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     urlSetting: "zaiUrl",
     defaultUrl: DEFAULT_ZAI_CONFIG.url,
     createAdapter: () => new ZaiAdapter(),
+    createProviderFactory: () => createOpenAICompatible as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       model: settings.zaiDefaultModel,
       url: settings.zaiUrl,
@@ -187,4 +201,8 @@ export function getProviderFrontmatterFields(
   settings: ChatGPT_MDSettings
 ): Record<string, unknown> {
   return findProviderDefinition(providerId)?.getFrontmatterFields(settings) || {};
+}
+
+export function getProviderFactory(providerId: AiServiceType): ProviderFactory {
+  return getProviderDefinition(providerId).createProviderFactory();
 }

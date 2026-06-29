@@ -6,6 +6,7 @@ import { requestStream } from "./requestStream";
 import { parseNonStreamingResponse } from "src/Utilities/ResponseHelpers";
 import { validateNonEmpty, validateUrl } from "src/Utilities/InputValidator";
 
+import { Logger } from "src/Utilities/Logger";
 /**
  * ApiService handles all API communication for the application
  * It centralizes request logic, error handling, and response processing
@@ -173,7 +174,7 @@ export class ApiService {
     return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
-      console.log(`[ChatGPT MD] Fetch adapter CALLED`, {
+      Logger.debug(`[ChatGPT MD] Fetch adapter CALLED`, {
         url,
         method: init?.method || "GET",
         hasBody: !!init?.body,
@@ -192,7 +193,7 @@ export class ApiService {
         signal: init?.signal || undefined,
       };
 
-      console.log(`[ChatGPT MD] Calling requestStream with options:`, {
+      Logger.debug(`[ChatGPT MD] Calling requestStream with options:`, {
         url: requestOptions.url,
         method: requestOptions.method,
         hasBody: !!requestOptions.body,
@@ -200,7 +201,7 @@ export class ApiService {
 
       try {
         const response = await requestStream(requestOptions);
-        console.log(`[ChatGPT MD] requestStream returned response:`, {
+        Logger.debug(`[ChatGPT MD] requestStream returned response:`, {
           status: response.status,
           ok: response.ok,
         });

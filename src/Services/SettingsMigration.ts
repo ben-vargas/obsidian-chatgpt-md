@@ -1,4 +1,5 @@
 import { ChatGPT_MDSettings } from "src/Models/Config";
+import { Logger } from "src/Utilities/Logger";
 import {
   DEFAULT_ANTHROPIC_CONFIG,
   DEFAULT_GEMINI_CONFIG,
@@ -27,7 +28,6 @@ Code block formatting requirements:
 - The actual code should start on a new line after the language specification
 - Example format:
 \`\`\`javascript
-console.log("Hello World");
 \`\`\`
 
 Inline code formatting requirements:
@@ -80,7 +80,7 @@ export class SettingsMigrationService {
     needsUpdate = (await this.migratePluginSystemMessage(settings, updateSettings)) || needsUpdate;
 
     if (needsUpdate) {
-      console.log("[ChatGPT MD] Settings migration completed");
+      Logger.debug("[ChatGPT MD] Settings migration completed");
     }
 
     return needsUpdate;
@@ -128,7 +128,7 @@ export class SettingsMigrationService {
           [settingKey]: currentValue.replace(migration.pattern, migration.replacement),
         } as Partial<ChatGPT_MDSettings>);
 
-        console.log(`[ChatGPT MD] Migration (${migration.introducedIn}): ${migration.description}`);
+        Logger.debug(`[ChatGPT MD] Migration (${migration.introducedIn}): ${migration.description}`);
         needsUpdate = true;
       }
     }
@@ -148,11 +148,11 @@ export class SettingsMigrationService {
       settings.hasOwnProperty("openaiDefaultModel") || settings.hasOwnProperty("anthropicDefaultModel");
 
     if (hasNewStructure) {
-      console.log("[ChatGPT MD] New frontmatter structure already present, skipping migration");
+      Logger.debug("[ChatGPT MD] New frontmatter structure already present, skipping migration");
       return false;
     }
 
-    console.log("[ChatGPT MD] Migrating to new frontmatter settings structure (v2.7.0)");
+    Logger.debug("[ChatGPT MD] Migrating to new frontmatter settings structure (v2.7.0)");
 
     // Migrate provider-specific settings from their config defaults
     // Use the actual service config values as the single source of truth
@@ -200,7 +200,7 @@ export class SettingsMigrationService {
       ...newProviderSettings,
     } as Partial<ChatGPT_MDSettings>);
 
-    console.log("[ChatGPT MD] Migrated frontmatter settings to new structure");
+    Logger.debug("[ChatGPT MD] Migrated frontmatter settings to new structure");
     return true;
   }
 
@@ -218,18 +218,18 @@ export class SettingsMigrationService {
     const originalMessage = ORIGINAL_PLUGIN_SYSTEM_MESSAGE.trim();
 
     if (currentMessage !== originalMessage) {
-      console.log("[ChatGPT MD] Plugin system message has been customized by user, skipping migration");
+      Logger.debug("[ChatGPT MD] Plugin system message has been customized by user, skipping migration");
       return false;
     }
 
-    console.log("[ChatGPT MD] Migrating plugin system message to concise version (v2.8.1)");
+    Logger.debug("[ChatGPT MD] Migrating plugin system message to concise version (v2.8.1)");
 
     // Update to the new concise version
     updateSettings({
       pluginSystemMessage: PLUGIN_SYSTEM_MESSAGE,
     } as Partial<ChatGPT_MDSettings>);
 
-    console.log("[ChatGPT MD] Plugin system message migrated to concise version");
+    Logger.debug("[ChatGPT MD] Plugin system message migrated to concise version");
     return true;
   }
 

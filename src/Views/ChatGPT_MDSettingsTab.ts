@@ -125,74 +125,71 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     });
   }
 
-  createSettingElement(container: HTMLElement, schema: SettingDefinition) {
-    // Regular handling for all settings
+  createSettingElement(container: HTMLElement, schema: SettingDefinition): void {
     const setting = new Setting(container).setName(schema.name).setDesc(schema.description);
 
-    if (schema.type === "text") {
-      setting.addText((text) => {
-        text
-          .setPlaceholder(schema.placeholder || "")
-          .setValue(String(this.settingsProvider.settings[schema.id]))
-          .onChange(async (value) => {
-            // Type-safe update for string settings
-            this.updateSetting(schema.id, value as ChatGPT_MDSettings[typeof schema.id]);
-            await this.settingsProvider.saveSettings();
-          });
+    if (schema.type === "text") this.addTextSetting(setting, schema);
+    if (schema.type === "textarea") this.addTextareaSetting(setting, schema);
+    if (schema.type === "toggle") this.addToggleSetting(setting, schema);
+    if (schema.type === "dropdown" && schema.options) this.addDropdownSetting(setting, schema);
+  }
 
-        // Set width to match textarea
-        text.inputEl.style.width = "300px";
+  private addTextSetting(setting: Setting, schema: SettingDefinition): void {
+    setting.addText((text) => {
+      text
+        .setPlaceholder(schema.placeholder || "")
+        .setValue(String(this.settingsProvider.settings[schema.id]))
+        .onChange((value) => this.saveSetting(schema, value));
+      text.inputEl.style.width = "300px";
+      return text;
+    });
+  }
 
-        return text;
-      });
-    } else if (schema.type === "textarea") {
-      setting.addTextArea((text) => {
-        text
-          .setPlaceholder(schema.placeholder || "")
-          .setValue(String(this.settingsProvider.settings[schema.id] || schema.placeholder))
-          .onChange(async (value) => {
-            // Type-safe update for string settings
-            this.updateSetting(schema.id, value as ChatGPT_MDSettings[typeof schema.id]);
-            await this.settingsProvider.saveSettings();
-          });
+  private addTextareaSetting(setting: Setting, schema: SettingDefinition): void {
+    setting.addTextArea((text) => {
+      text
+        .setPlaceholder(schema.placeholder || "")
+        .setValue(String(this.settingsProvider.settings[schema.id] || schema.placeholder))
+        .onChange((value) => this.saveSetting(schema, value));
+      text.inputEl.style.width = "300px";
+      this.applyTextareaHeight(text.inputEl, schema);
+      return text;
+    });
+  }
 
-        text.inputEl.style.width = "300px";
+  private addToggleSetting(setting: Setting, schema: SettingDefinition): void {
+    setting.addToggle((toggle) =>
+      toggle
+        .setValue(Boolean(this.settingsProvider.settings[schema.id]))
+        .onChange((value) => this.saveSetting(schema, value))
+    );
+  }
 
-        if (schema.id === "defaultChatFrontmatter" || schema.id === "pluginSystemMessage") {
-          text.inputEl.style.height = "260px";
-          text.inputEl.style.minHeight = "260px";
-        }
+  private addDropdownSetting(setting: Setting, schema: SettingDefinition): void {
+    setting.addDropdown((dropdown) => {
+      dropdown.addOptions(schema.options || {});
+      dropdown.setValue(String(this.settingsProvider.settings[schema.id]));
+      dropdown.onChange((value) => this.saveSetting(schema, value));
+      dropdown.selectEl.style.width = "300px";
+      return dropdown;
+    });
+  }
 
-        if (schema.id === "toolEnabledModels") {
-          text.inputEl.style.height = "200px";
-          text.inputEl.style.minHeight = "200px";
-        }
-
-        return text;
-      });
-    } else if (schema.type === "toggle") {
-      setting.addToggle((toggle) =>
-        toggle.setValue(Boolean(this.settingsProvider.settings[schema.id])).onChange(async (value) => {
-          // Type-safe update for boolean settings
-          this.updateSetting(schema.id, value as ChatGPT_MDSettings[typeof schema.id]);
-          await this.settingsProvider.saveSettings();
-        })
-      );
-    } else if (schema.type === "dropdown" && schema.options) {
-      setting.addDropdown((dropdown) => {
-        dropdown.addOptions(schema.options || {});
-        dropdown.setValue(String(this.settingsProvider.settings[schema.id]));
-        dropdown.onChange(async (value) => {
-          // Type-safe update for string settings
-          this.updateSetting(schema.id, value as ChatGPT_MDSettings[typeof schema.id]);
-          await this.settingsProvider.saveSettings();
-        });
-
-        // Set width to match textarea
-        dropdown.selectEl.style.width = "300px";
-
-        return dropdown;
-      });
+  private applyTextareaHeight(inputEl: HTMLTextAreaElement, schema: SettingDefinition): void {
+    if (schema.id === "defaultChatFrontmatter" || schema.id === "pluginSystemMessage") {
+      inputEl.style.height = "260px";
+      inputEl.style.minHeight = "260px";
     }
+
+    if (schema.id === "toolEnabledModels") {
+      inputEl.style.height = "200px";
+      inputEl.style.minHeight = "200px";
+    }
+  }
+
+  private async saveSetting(schema: SettingDefinition, value: string | boolean): Promise<void> {
+    const parsedValue = schema.valueType === "number" ? Number(value) : value;
+    this.updateSetting(schema.id, parsedValue as ChatGPT_MDSettings[typeof schema.id]);
+    await this.settingsProvider.saveSettings();
   }
 }

@@ -15,6 +15,7 @@ export interface SettingDefinition {
   name: string;
   description: string;
   type: "text" | "textarea" | "toggle" | "dropdown";
+  valueType?: "string" | "number";
   placeholder?: string;
   options?: Record<string, string>;
   group: string;
@@ -151,6 +152,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "openaiDefaultTemperature",
+    valueType: "number",
     name: "Default Temperature",
     description: "Default temperature for OpenAI chats (0.0 to 2.0)",
     type: "text",
@@ -159,6 +161,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "openaiDefaultMaxTokens",
+    valueType: "number",
     name: "Default Max Tokens",
     description: "Default max tokens for OpenAI chats",
     type: "text",
@@ -185,6 +188,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "anthropicDefaultTemperature",
+    valueType: "number",
     name: "Default Temperature",
     description: "Default temperature for Anthropic chats (0.0 to 1.0)",
     type: "text",
@@ -193,6 +197,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "anthropicDefaultMaxTokens",
+    valueType: "number",
     name: "Default Max Tokens",
     description: "Default max tokens for Anthropic chats",
     type: "text",
@@ -219,6 +224,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "geminiDefaultTemperature",
+    valueType: "number",
     name: "Default Temperature",
     description: "Default temperature for Gemini chats (0.0 to 2.0)",
     type: "text",
@@ -227,6 +233,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "geminiDefaultMaxTokens",
+    valueType: "number",
     name: "Default Max Tokens",
     description: "Default max tokens for Gemini chats",
     type: "text",
@@ -253,6 +260,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "openrouterDefaultTemperature",
+    valueType: "number",
     name: "Default Temperature",
     description: "Default temperature for OpenRouter chats (0.0 to 2.0)",
     type: "text",
@@ -261,6 +269,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "openrouterDefaultMaxTokens",
+    valueType: "number",
     name: "Default Max Tokens",
     description: "Default max tokens for OpenRouter chats",
     type: "text",
@@ -287,6 +296,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "zaiDefaultTemperature",
+    valueType: "number",
     name: "Default Temperature",
     description: "Default temperature for Z.AI chats (0.0 to 1.0)",
     type: "text",
@@ -295,6 +305,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "zaiDefaultMaxTokens",
+    valueType: "number",
     name: "Default Max Tokens",
     description: "Default max tokens for Z.AI chats",
     type: "text",
@@ -313,6 +324,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "ollamaDefaultTemperature",
+    valueType: "number",
     name: "Default Temperature",
     description: "Default temperature for Ollama chats (0.0 to 2.0)",
     type: "text",
@@ -331,6 +343,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "lmstudioDefaultTemperature",
+    valueType: "number",
     name: "Default Temperature",
     description: "Default temperature for LM Studio chats (0.0 to 2.0)",
     type: "text",
@@ -374,6 +387,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "headingLevel",
+    valueType: "number",
     name: "Heading Level",
     description: `Heading level for messages (example for heading level 2: '## ${ROLE_IDENTIFIER}${ROLE_USER}'). Valid heading levels are 0, 1, 2, 3, 4, 5, 6`,
     type: "text",
@@ -433,6 +447,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
   },
   {
     id: "maxWebSearchResults",
+    valueType: "number",
     name: "Max Web Search Results",
     description: "Maximum number of search results to return (1-10)",
     type: "text",

@@ -11,6 +11,7 @@ import { aiProviderFromKeys, aiProviderFromUrl } from "src/Utilities/ProviderHel
 import type { AgentService } from "./AgentService";
 import { AI_SERVICE_OPENAI } from "src/Constants";
 import { getProviderFrontmatterFields } from "./Providers/ProviderRegistry";
+import { Logger } from "src/Utilities/Logger";
 
 /**
  * Manages plugin settings with persistence
@@ -69,6 +70,7 @@ export class SettingsService {
   async loadSettings(): Promise<ChatGPT_MDSettings> {
     const loadedData = await this.plugin.loadData();
     Object.assign(this.settings, DEFAULT_SETTINGS, loadedData);
+    Logger.setDebugEnabled(this.settings.debugMode);
     return this.settings;
   }
 
@@ -84,6 +86,7 @@ export class SettingsService {
    */
   updateSettings(newSettings: Partial<ChatGPT_MDSettings>): void {
     Object.assign(this.settings, newSettings);
+    Logger.setDebugEnabled(this.settings.debugMode);
   }
 
   /**

@@ -2,6 +2,7 @@ import { requestUrl } from "obsidian";
 import { NotificationService } from "./NotificationService";
 import { WebSearchResult } from "src/Models/Tool";
 
+import { Logger } from "src/Utilities/Logger";
 /**
  * Maximum number of web search results to return
  */
@@ -130,7 +131,7 @@ export class WebSearchService {
     const { query, limit = 5 } = args;
     const maxLimit = Math.min(limit, MAX_WEB_RESULTS); // Cap at MAX_WEB_RESULTS
 
-    console.log(`[ChatGPT MD] Web search: "${query}" using ${provider}`);
+    Logger.debug(`[ChatGPT MD] Web search: "${query}" using ${provider}`);
 
     switch (provider) {
       case "brave":

@@ -1,3 +1,4 @@
+import { Logger } from "src/Utilities/Logger";
 // Conditional imports for Node.js modules (only available on desktop)
 let httpRequest: any;
 let httpsRequest: any;
@@ -29,7 +30,7 @@ try {
 }
 
 // Log module loading state at initialization
-console.log(`[ChatGPT MD] requestStream module loaded`, {
+Logger.debug(`[ChatGPT MD] requestStream module loaded`, {
   nodeModulesAvailable: !!(httpRequest && httpsRequest),
   error: nodeModulesLoadError,
 });
@@ -53,7 +54,7 @@ interface RequestStreamParam {
  * @returns Promise<Response> - Web API compatible Response object
  */
 export async function requestStream(options: RequestStreamParam): Promise<Response> {
-  console.log(`[ChatGPT MD] requestStream called`, {
+  Logger.debug(`[ChatGPT MD] requestStream called`, {
     url: options.url,
     method: options.method,
     hasBody: !!options.body,
@@ -62,11 +63,11 @@ export async function requestStream(options: RequestStreamParam): Promise<Respon
 
   // Check if Node.js HTTP modules are available (desktop environment)
   if (httpRequest && httpsRequest) {
-    console.log(`[ChatGPT MD] Using Node.js HTTP for request`);
+    Logger.debug(`[ChatGPT MD] Using Node.js HTTP for request`);
     return requestStreamNodeHttp(options);
   } else {
     // Fallback to fetch() for mobile environments
-    console.log(`[ChatGPT MD] Using fetch fallback for request`);
+    Logger.debug(`[ChatGPT MD] Using fetch fallback for request`);
     return requestStreamFetch(options);
   }
 }
