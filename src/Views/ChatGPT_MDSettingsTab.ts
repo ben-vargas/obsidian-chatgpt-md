@@ -28,73 +28,68 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
 
     const settingsSchema = createSettingsSchema(this.settingsProvider.settings);
 
-    // Group settings by category
-    const groupedSettings: Record<string, SettingDefinition[]> = {};
-    settingsSchema.forEach((setting) => {
-      if (!groupedSettings[setting.group]) {
-        groupedSettings[setting.group] = [];
+    const { regularGroups, collapsibleGroups } = this.groupSettings(settingsSchema);
+
+    this.renderPriorityGroups(containerEl, regularGroups);
+    this.renderProviderGroups(containerEl, collapsibleGroups);
+    this.renderRemainingGroups(containerEl, regularGroups);
+  }
+
+  private groupSettings(settingsSchema: SettingDefinition[]): {
+    regularGroups: Record<string, SettingDefinition[]>;
+    collapsibleGroups: Record<string, SettingDefinition[]>;
+  } {
+    return settingsSchema.reduce(
+      (groups, setting) => {
+        const target = COLLAPSIBLE_GROUPS.includes(setting.group) ? groups.collapsibleGroups : groups.regularGroups;
+        target[setting.group] = [...(target[setting.group] || []), setting];
+        return groups;
+      },
+      { regularGroups: {}, collapsibleGroups: {} } as {
+        regularGroups: Record<string, SettingDefinition[]>;
+        collapsibleGroups: Record<string, SettingDefinition[]>;
       }
-      groupedSettings[setting.group].push(setting);
+    );
+  }
+
+  private renderPriorityGroups(container: HTMLElement, regularGroups: Record<string, SettingDefinition[]>): void {
+    this.renderRegularGroup(container, regularGroups, "API Keys");
+    this.renderRegularGroup(container, regularGroups, "Chat Behavior");
+  }
+
+  private renderRegularGroup(
+    container: HTMLElement,
+    regularGroups: Record<string, SettingDefinition[]>,
+    group: string
+  ): void {
+    const settings = regularGroups[group];
+    if (!settings) return;
+
+    this.renderGroupHeader(container, group);
+    settings.forEach((setting) => this.createSettingElement(container, setting));
+    container.createEl("hr");
+    delete regularGroups[group];
+  }
+
+  private renderProviderGroups(container: HTMLElement, collapsibleGroups: Record<string, SettingDefinition[]>): void {
+    if (Object.keys(collapsibleGroups).length === 0) return;
+
+    this.renderGroupHeader(container, "Provider Settings");
+    const providerNote = container.createEl("p", {
+      text: "Configure default settings for each AI provider. Click to expand.",
+      cls: "setting-item-description",
     });
+    providerNote.style.marginTop = "-10px";
+    providerNote.style.marginBottom = "15px";
 
-    // Separate collapsible and non-collapsible groups
-    const collapsibleGroups: Record<string, SettingDefinition[]> = {};
-    const regularGroups: Record<string, SettingDefinition[]> = {};
-
-    Object.entries(groupedSettings).forEach(([group, settings]) => {
-      if (COLLAPSIBLE_GROUPS.includes(group)) {
-        collapsibleGroups[group] = settings;
-      } else {
-        regularGroups[group] = settings;
-      }
+    Object.entries(collapsibleGroups).forEach(([group, settings]) => {
+      this.renderCollapsibleGroup(container, group, settings);
     });
+    container.createEl("hr");
+  }
 
-    // Render API Keys first (always visible)
-    if (regularGroups["API Keys"]) {
-      this.renderGroupHeader(containerEl, "API Keys");
-      regularGroups["API Keys"].forEach((setting) => {
-        this.createSettingElement(containerEl, setting);
-      });
-      containerEl.createEl("hr");
-      delete regularGroups["API Keys"];
-    }
-
-    // Render Chat Behavior (always visible)
-    if (regularGroups["Chat Behavior"]) {
-      this.renderGroupHeader(containerEl, "Chat Behavior");
-      regularGroups["Chat Behavior"].forEach((setting) => {
-        this.createSettingElement(containerEl, setting);
-      });
-      containerEl.createEl("hr");
-      delete regularGroups["Chat Behavior"];
-    }
-
-    // Render collapsible provider settings section
-    if (Object.keys(collapsibleGroups).length > 0) {
-      this.renderGroupHeader(containerEl, "Provider Settings");
-      const providerNote = containerEl.createEl("p", {
-        text: "Configure default settings for each AI provider. Click to expand.",
-        cls: "setting-item-description",
-      });
-      providerNote.style.marginTop = "-10px";
-      providerNote.style.marginBottom = "15px";
-
-      // Create collapsible sections for each provider
-      Object.entries(collapsibleGroups).forEach(([group, settings]) => {
-        this.renderCollapsibleGroup(containerEl, group, settings);
-      });
-
-      containerEl.createEl("hr");
-    }
-
-    // Render remaining regular groups
-    Object.entries(regularGroups).forEach(([group, settings]) => {
-      this.renderGroupHeader(containerEl, group);
-      settings.forEach((setting) => {
-        this.createSettingElement(containerEl, setting);
-      });
-      containerEl.createEl("hr");
-    });
+  private renderRemainingGroups(container: HTMLElement, regularGroups: Record<string, SettingDefinition[]>): void {
+    Object.keys(regularGroups).forEach((group) => this.renderRegularGroup(container, regularGroups, group));
   }
 
   /**
