@@ -28,9 +28,10 @@ This directory contains the core architectural components: the dependency inject
 3. **Settings service**:
    - SettingsService → Plugin, FrontmatterManager, NotificationService, ErrorService
 
-4. **Editor service** (composite):
-   - EditorService → App, FileService, MessageService, TemplateService, SettingsService
+4. **Editor service** (composite, circular with TemplateService):
+   - EditorService → App, FileService, MessageService, TemplateService (late-bound), SettingsService
    - TemplateService → App, FileService, EditorService
+   - Resolved by passing `undefined` for templateService initially, then setting after creation
 
 5. **Agent service** (v3.1):
    - AgentService → App, FileService, FrontmatterManager
@@ -38,6 +39,7 @@ This directory contains the core architectural components: the dependency inject
 
 6. **AI service factory**:
    - `aiProviderService: () => AiProviderService` - Factory function creating new instances per request
+   - AiProviderService.setSaveSettingsCallback() called with settingsService.saveSettings
 
 7. **Tool services** (v3.0):
    - VaultSearchService → App, FileService
@@ -76,6 +78,16 @@ container.agentService; // Direct access
 - `onunload()` - Cleanup, abort streaming
 - `loadSettings()` - Load settings with migration
 
-Agent commands registered:
+Commands registered:
+
+- `ChatHandler` - Main chat command (EditorViewCommand)
+- `ModelSelectHandler` - Model selection (EditorViewCommand)
+- `AddDividerHandler` - Insert message separator (EditorCommand)
+- `AddCommentBlockHandler` - Insert comment block (EditorCommand)
+- `StopStreamingHandler` - Abort streaming (CallbackCommand)
+- `InferTitleHandler` - Generate title from chat (EditorViewCommand)
+- `MoveToNewChatHandler` - Move conversation to new file (EditorCommand)
+- `ChooseChatTemplateHandler` - Create chat from template (CallbackCommand)
+- `ClearChatHandler` - Clear messages, keep frontmatter (EditorCommand)
 - `ChooseAgentHandler` - Choose agent from folder (CallbackCommand)
-- `CreateAgentHandler` - Create new agent with manual form or AI wizard (CallbackCommand, receives `ModelSelectHandler` for model list)
+- `CreateAgentHandler` - Create new agent with wizard (CallbackCommand, receives ModelSelectHandler)

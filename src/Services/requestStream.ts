@@ -3,22 +3,36 @@ let httpRequest: any;
 let httpsRequest: any;
 let URL: any;
 
+// Debug flag to track module loading state
+let nodeModulesLoadError: string | null = null;
+
 // Try to load Node.js modules using require
 try {
   const nodeRequire = (globalThis as any).require;
-  const http = nodeRequire("http");
-  const https = nodeRequire("https");
-  const url = nodeRequire("url");
+  if (!nodeRequire) {
+    nodeModulesLoadError = "globalThis.require is undefined";
+  } else {
+    const http = nodeRequire("http");
+    const https = nodeRequire("https");
+    const url = nodeRequire("url");
 
-  httpRequest = http.request;
-  httpsRequest = https.request;
-  URL = url.URL;
-} catch (_error) {
+    httpRequest = http.request;
+    httpsRequest = https.request;
+    URL = url.URL;
+  }
+} catch (error: any) {
   // Node.js modules not available (mobile environment)
+  nodeModulesLoadError = error?.message || String(error);
   httpRequest = null;
   httpsRequest = null;
   URL = globalThis.URL; // Use Web API URL instead
 }
+
+// Log module loading state at initialization
+console.log(`[ChatGPT MD] requestStream module loaded`, {
+  nodeModulesAvailable: !!(httpRequest && httpsRequest),
+  error: nodeModulesLoadError,
+});
 
 /**
  * Options for streaming HTTP requests (similar to Obsidian's RequestUrlParam)
@@ -39,11 +53,20 @@ interface RequestStreamParam {
  * @returns Promise<Response> - Web API compatible Response object
  */
 export async function requestStream(options: RequestStreamParam): Promise<Response> {
+  console.log(`[ChatGPT MD] requestStream called`, {
+    url: options.url,
+    method: options.method,
+    hasBody: !!options.body,
+    nodeModulesAvailable: !!(httpRequest && httpsRequest),
+  });
+
   // Check if Node.js HTTP modules are available (desktop environment)
   if (httpRequest && httpsRequest) {
+    console.log(`[ChatGPT MD] Using Node.js HTTP for request`);
     return requestStreamNodeHttp(options);
   } else {
     // Fallback to fetch() for mobile environments
+    console.log(`[ChatGPT MD] Using fetch fallback for request`);
     return requestStreamFetch(options);
   }
 }

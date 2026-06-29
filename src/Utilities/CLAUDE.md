@@ -9,16 +9,22 @@ Pure helper functions extracted from services for reusability and testability. F
 **Text formatting utilities**
 
 - `getHeadingPrefix(level)` - Returns `"### "` for heading level 3, etc.
-- `sanitizeTitle(title)` - Remove invalid filename characters
-- Other text manipulation helpers
+- `sanitizeTitle(title)` - Remove invalid filename characters (`:`, `\`, `/`, `*`, `?`, `"`, `<`, `>`, `|`)
 
 ### MessageHelpers.ts
 
 **Message formatting utilities**
 
-- Message role extraction (parses `role::assistant` format)
-- Content formatting
-- Message array manipulation
+- `extractRoleAndMessage(message)` - Parse `role::assistant` format, returns `{ role, content }`
+- `splitMessages(text, separator)` - Split text by message separator
+- `stripRolePrefix(line)` - Remove `role::` prefix from line
+
+### YamlHelpers.ts
+
+**YAML processing utilities**
+
+- `objectToYamlFrontmatter(obj)` - Convert object to YAML frontmatter string
+- `parseSettingsFrontmatter(frontmatterStr)` - Parse YAML frontmatter string to object
 
 ## Editor Utilities
 
@@ -26,23 +32,24 @@ Pure helper functions extracted from services for reusability and testability. F
 
 **Editor manipulation helpers**
 
-- Cursor positioning
-- Text insertion
+- Cursor positioning helpers
+- Text insertion helpers
 - Range operations
 
 ### ResponseHelpers.ts
 
 **AI response handling**
 
-- `insertAssistantHeader(editor, headingPrefix, modelName)` - Insert response header
-- Response formatting
+- `insertAssistantHeader(editor, headingPrefix, modelName)` - Insert response header (`### assistant (model)`)
+- Returns `{ initialCursor, newCursor }` for cursor management
 
 ### StreamingHelpers.ts
 
 **Streaming utilities**
 
-- Buffer management (reduces editor updates for smoother UX)
-- Chunk processing
+- `DEFAULT_FLUSH_INTERVAL_MS = 50` - Default flush interval
+- `flushBufferedText(editor, text, cursor, setAtCursor)` - Flush text to editor, returns new cursor
+- `calculateCursorAfterInsert(editor, text, insertPosition)` - Calculate cursor after text insertion
 
 ## Configuration Utilities
 
@@ -51,14 +58,16 @@ Pure helper functions extracted from services for reusability and testability. F
 **Frontmatter parsing utilities**
 
 - `isTitleTimestampFormat(title, format)` - Check if title matches date format
-- YAML parsing helpers
+- `getDefaultConfigForService(service)` - Get default config for AI service
+- `getDefaultModelForService(service)` - Get default model for AI service
 
 ### ProviderHelpers.ts
 
 **AI provider utilities**
 
-- Provider detection from model string (e.g., `ollama@model` → "ollama")
-- URL construction
+- `aiProviderFromUrl(url, model)` - Determine provider from URL/model prefix
+- `aiProviderFromKeys(settings)` - Determine provider from available API keys
+- `extractProviderFromModel(model)` - Extract provider prefix from model string
 
 ## Validation
 
@@ -66,16 +75,16 @@ Pure helper functions extracted from services for reusability and testability. F
 
 **Input validation utilities**
 
-- API key validation
-- URL validation
-- Model name validation
+- `validateNonEmpty(value, name)` - Check value is not empty
+- `validateUrl(url)` - Validate URL format
+- `validateModelName(model)` - Validate model name format
 
 ### ModelFilteringHelper.ts
 
 **Model list filtering**
 
-- Filter models by provider
-- Search/fuzzy matching
+- `filterModelsByProvider(models, provider)` - Filter models by provider prefix
+- `fuzzyMatchModels(models, query)` - Fuzzy search in model list
 
 ## Error Handling
 
@@ -83,15 +92,16 @@ Pure helper functions extracted from services for reusability and testability. F
 
 **Async error handling utilities**
 
-- Error wrapping
-- Retry logic
+- `withErrorHandling(fn, errorHandler)` - Wrap async function with error handling
+- `retryWithBackoff(fn, maxRetries, delay)` - Retry with exponential backoff
 
 ### ErrorMessageFormatter.ts
 
 **User-friendly error messages**
 
-- HTTP status code mapping
-- Error message formatting
+- `formatApiError(error, provider)` - Format API error for display
+- HTTP status code mapping to user-friendly messages
+- Provider-specific error message formatting
 
 ## Modal Utilities
 
@@ -99,9 +109,10 @@ Pure helper functions extracted from services for reusability and testability. F
 
 **Modal construction helpers**
 
-- Common modal patterns
-- Button creation
-- Form helpers
+- `createButton(container, text, onClick)` - Create styled button
+- `createTextInput(container, placeholder)` - Create text input
+- `createCheckbox(container, label, checked)` - Create checkbox
+- Common modal layout patterns
 
 ## Testing
 
@@ -110,6 +121,6 @@ Tests are located alongside utilities in `*.test.ts` files:
 - `TextHelpers.test.ts`
 - `MessageHelpers.test.ts`
 - `FrontmatterHelpers.test.ts`
-- Others
+- `StreamingHandler.test.ts`
 
 Run tests with: `yarn test` or `yarn test path/to/test.test.ts`

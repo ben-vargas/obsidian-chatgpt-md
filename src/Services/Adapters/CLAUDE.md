@@ -39,6 +39,7 @@ interface AiProviderConfig {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
+  apiKey?: string;
 }
 ```
 
@@ -56,7 +57,7 @@ Contract each adapter must implement:
 - `supportsToolCalling()` - Tool calling support
 - `requiresApiKey()` - Local providers (Ollama, LM Studio): false
 - `extractModelName(modelId)` - Strip provider prefix
-- `getApiPathSuffix()` - API path suffix for chat completions
+- `getApiPathSuffix(url?)` - API path suffix for chat completions
 
 ## BaseProviderAdapter.ts
 
@@ -81,6 +82,7 @@ Default implementations:
 - System role: `"developer"` (OpenAI-specific for GPT-4+)
 - Auth: `Authorization: Bearer {key}`
 - Uses Vercel AI SDK `createOpenAI()`
+- `getApiPathSuffix()` → "/v1"
 
 ### AnthropicAdapter.ts
 
@@ -92,7 +94,7 @@ Default implementations:
 ### GeminiAdapter.ts
 
 - Default URL: `https://generativelanguage.googleapis.com`
-- Auth: API key in URL query parameter
+- Auth: API key in URL query parameter (`?key={apiKey}`)
 - Uses Vercel AI SDK `createGoogleGenerativeAI()`
 
 ### OllamaAdapter.ts
@@ -101,6 +103,7 @@ Default implementations:
 - `requiresApiKey()` → false
 - Fetches models from `/api/tags`
 - Uses Vercel AI SDK `createOpenAICompatible()`
+- `getApiPathSuffix()` → "/v1" (for `/v1/chat/completions`)
 
 ### LmStudioAdapter.ts
 
@@ -108,6 +111,7 @@ Default implementations:
 - `requiresApiKey()` → false
 - OpenAI-compatible API
 - Uses Vercel AI SDK `createOpenAICompatible()`
+- `getApiPathSuffix()` → "/v1"
 
 ### OpenRouterAdapter.ts
 
@@ -135,7 +139,8 @@ Default implementations:
 
 1. Create new adapter extending `BaseProviderAdapter`
 2. Override provider-specific methods (URL, auth headers, model fetching)
-3. Add to `ProviderType` union
-4. Add to `AiProviderService` provider selection logic
+3. Add to `ProviderType` union in `Constants.ts`
+4. Register adapter in `AiProviderService` constructor's adapter map
 5. Add default configuration to `DefaultConfigs.ts`
 6. Add to settings UI in `ChatGPT_MDSettingsTab.ts`
+7. Add URL and API key settings to `Config.ts` interfaces

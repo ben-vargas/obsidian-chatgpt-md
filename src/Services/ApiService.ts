@@ -173,6 +173,13 @@ export class ApiService {
     return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
 
+      console.log(`[ChatGPT MD] Fetch adapter CALLED`, {
+        url,
+        method: init?.method || "GET",
+        hasBody: !!init?.body,
+        hasSignal: !!init?.signal,
+      });
+
       const requestOptions = {
         url,
         method: init?.method || "GET",
@@ -185,7 +192,23 @@ export class ApiService {
         signal: init?.signal || undefined,
       };
 
-      return requestStream(requestOptions);
+      console.log(`[ChatGPT MD] Calling requestStream with options:`, {
+        url: requestOptions.url,
+        method: requestOptions.method,
+        hasBody: !!requestOptions.body,
+      });
+
+      try {
+        const response = await requestStream(requestOptions);
+        console.log(`[ChatGPT MD] requestStream returned response:`, {
+          status: response.status,
+          ok: response.ok,
+        });
+        return response;
+      } catch (error: any) {
+        console.error(`[ChatGPT MD] requestStream error:`, error);
+        throw error;
+      }
     };
   }
 

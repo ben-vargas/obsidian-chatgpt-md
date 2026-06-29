@@ -62,7 +62,8 @@ Uses `ServiceContainer` for dependency injection.
 **Model selection modal**
 
 - Opens AiModelSuggestModal (shows cached models immediately, fetches fresh in background)
-- Fetches models from all configured providers
+- `initializeAvailableModels()` - Fetches models from all configured providers at startup
+- `getAvailableModels()` - Returns cached model list for agent creation modal
 - Updates note frontmatter when selected
 
 ### InferTitleHandler.ts
@@ -80,6 +81,7 @@ Uses `ServiceContainer` for dependency injection.
 
 - Calls abort controller to stop streaming
 - Desktop only (mobile doesn't support Node.js streams)
+- Receives AiProviderService reference via `setCurrentAiService()`
 
 ## Utility Handlers
 
@@ -89,13 +91,13 @@ Simple one-liner commands:
 
 - **AddDividerHandler** - Inserts `<hr class="__chatgpt_plugin">` (message separator)
 - **AddCommentBlockHandler** - Inserts comment block markers (`%%` ... `%%`)
-- **ClearChatHandler** - Removes messages, keeps frontmatter
 
 ### RemainingHandlers.ts
 
 Additional commands:
 
-- **NewChatWithHighlightedTextHandler** - Create chat from selection
+- **ClearChatHandler** - Removes messages, keeps frontmatter
+- **NewChatWithHighlightedTextHandler** - Create chat from selection (not currently registered)
 - **ChooseChatTemplateHandler** - Create chat from template
 - **MoveToNewChatHandler** - Move conversation to new file
 

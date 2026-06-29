@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ChatGPT MD is an Obsidian plugin that integrates multiple AI providers (OpenAI, OpenRouter, Anthropic, Gemini, Ollama, LM Studio) into Obsidian for seamless chat interactions within markdown notes. Users can have AI conversations directly in their notes, with support for note linking, streaming responses, and per-note configuration via frontmatter.
+ChatGPT MD is an Obsidian plugin that integrates multiple AI providers (OpenAI, OpenRouter, Anthropic, Gemini, Ollama, LM Studio, Z.AI) into Obsidian for seamless chat interactions within markdown notes. Users can have AI conversations directly in their notes, with support for note linking, streaming responses, and per-note configuration via frontmatter.
 
 ## v3.1.0 - Agents System
 
@@ -52,9 +52,11 @@ The plugin uses **constructor injection** via a centralized `ServiceContainer`:
 - **Only place** where dependencies are defined via `ServiceContainer.create()`
 - All services receive dependencies through constructors (no service locator pattern)
 
-**AI SDK**: Uses Vercel AI SDK (`ai` package) with provider-specific adapters (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`, `@openrouter/ai-sdk-provider`).
+**AI SDK**: Uses Vercel AI SDK (`ai` package) with provider-specific adapters (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`, `@openrouter/ai-sdk-provider`, `@ai-sdk/openai-compatible`).
 
-**Message flow**: User invokes chat command → EditorService extracts messages → MessageService parses (splits by `<hr class="__chatgpt_plugin">`, extracts `role::assistant` format, resolves wiki links) → FrontmatterManager merges per-note settings → AiProviderService selects adapter → API call → StreamingHandler streams response → EditorService inserts into editor
+**HTTP Layer**: Uses `requestStream.ts` on desktop (Node.js http/https modules) with fallback to native `fetch()` on mobile. Wrapped by `ApiService.createFetchAdapter()` for AI SDK compatibility.
+
+**Message flow**: User invokes chat command → EditorService extracts messages → MessageService parses (splits by `<hr class="__chatgpt_plugin">`, extracts `role::assistant` format, resolves wiki links) → SettingsService.getFrontmatter() merges per-note settings → AiProviderService selects adapter → API call via Vercel AI SDK → StreamingHandler streams response → EditorService inserts into editor
 
 ## Code Organization
 
@@ -76,9 +78,9 @@ Each directory has its own CLAUDE.md with detailed context:
 ## Key Design Patterns
 
 1. **Constructor Injection** - Dependencies passed via ServiceContainer; never instantiate services directly outside `ServiceContainer.create()`
-2. **Adapter Pattern** - `AiProviderService` uses provider-specific adapters (OpenAI, Anthropic, Gemini, Ollama, OpenRouter, LM Studio) implementing `ProviderAdapter` interface
-3. **Frontmatter-driven config** - Per-note settings override globals; merged at runtime by FrontmatterManager
-4. **Streaming responses** - Real-time AI output via Vercel AI SDK with platform-specific handling (desktop Node.js vs mobile Web API)
+2. **Adapter Pattern** - `AiProviderService` uses provider-specific adapters (OpenAI, Anthropic, Gemini, Ollama, OpenRouter, LM Studio, Z.AI) implementing `ProviderAdapter` interface
+3. **Frontmatter-driven config** - Per-note settings override globals; merged at runtime by SettingsService
+4. **Streaming responses** - Real-time AI output via Vercel AI SDK with line-boundary buffering and platform-specific handling (desktop Node.js vs mobile Web API)
 5. **Link context injection** - Wiki links `[[Note Name]]` are resolved and content injected into prompts
 6. **Command Handler Interface** - Commands implement `CommandHandler` with metadata; registered via `CommandRegistrar`
 7. **Agent system** - Agent files (markdown with frontmatter + body) override model/temperature and provide system prompts; resolved at runtime via `agent` frontmatter field
@@ -86,17 +88,22 @@ Each directory has its own CLAUDE.md with detailed context:
 ## Adding a New AI Provider
 
 1. Create adapter in `src/Services/Adapters/` implementing `ProviderAdapter`
-2. Add provider-specific configuration to settings
-3. Register adapter in `AiProviderService` (provider selection by model prefix: `ollama@`, `openrouter@`, etc.)
-4. Add URL configuration parameter (e.g., `providerUrl`)
+2. Add to `ProviderType` union in `Constants.ts`
+3. Register adapter in `AiProviderService` constructor's adapter map
+4. Add default configuration to `DefaultConfigs.ts`
+5. Add to settings UI in `ChatGPT_MDSettingsTab.ts`
+6. Add URL and API key settings to `Config.ts` interfaces
 
 ## Model Selection
 
 Models are specified with provider prefix:
 
 - OpenAI: `gpt-4o` (no prefix, default)
+- Anthropic: `anthropic@claude-3-5-sonnet`
+- Gemini: `gemini@gemini-1.5-pro`
 - Ollama: `ollama@llama3.2`
 - OpenRouter: `openrouter@anthropic/claude-3-5-sonnet`
 - LM Studio: `lmstudio@model-name`
+- Z.AI: `zai@glm-4.6`
 
 The prefix determines which adapter handles the request in `AiProviderService`.
