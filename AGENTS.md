@@ -1,0 +1,169 @@
+# AGENTS.md
+
+AI coding-agent instructions for **chatgpt-md**.
+
+## Project overview
+
+`chatgpt-md` is an Obsidian community plugin that brings LLM workflows into markdown notes. It supports:
+
+- Chat interactions directly inside Obsidian notes.
+- Multiple providers: OpenAI, OpenRouter, Anthropic, Gemini, Ollama, LM Studio, Z.AI, and compatible APIs.
+- Per-note configuration through YAML frontmatter.
+- Streaming responses.
+- Human-approved AI tool calls for vault and web search workflows.
+
+The plugin is TypeScript, bundled by esbuild, and runs inside the Obsidian plugin runtime.
+
+## Validation commands
+
+Use npm for validation unless the project explicitly changes package-manager policy.
+
+```bash
+npm run build
+npm test -- --runInBand
+npm run lint
+```
+
+Current lint may report complexity/length warnings. Do not treat existing warnings as task blockers unless your change adds new warnings.
+
+## Current architecture
+
+### Entry point
+
+- `src/main.ts`
+  - Creates the `ServiceContainer`.
+  - Loads and migrates settings.
+  - Registers commands.
+  - Starts background model initialization.
+
+### Dependency wiring
+
+- `src/core/ServiceContainer.ts`
+  - Explicit constructor-injection container.
+  - Creates services once per plugin load.
+  - Exposes an `aiProviderService()` factory for per-request AI provider instances.
+  - Do **not** add string-based service lookup or a framework-style DI system.
+
+### Commands
+
+- `src/Commands/*Handler.ts`
+  - Command handlers orchestrate services.
+  - Registration helpers live in `src/Commands/CommandRegistrar.ts`.
+  - Command contracts live in `src/Commands/CommandHandler.ts`.
+
+### Services
+
+- `src/Services/AiProviderService.ts`
+  - Current facade for AI calls, streaming, provider selection, title inference, and tool-call handling.
+  - Large; prefer incremental extraction of pure helpers over rewrites.
+
+- `src/Services/Adapters/*Adapter.ts`
+  - Provider-specific behavior such as model listing, auth headers, system-message role, API path suffix, and tool support.
+  - New provider-specific API differences belong here.
+
+- `src/Services/SettingsService.ts`
+  - Loads/saves plugin settings.
+  - Runs migrations.
+  - Resolves effective frontmatter config with global settings and agent frontmatter.
+
+- `src/Services/ToolService.ts`
+  - Registers tool definitions.
+  - Executes tools after approval.
+  - Formats/filters tool results.
+  - Preserve human approval flows when editing this area.
+
+- `src/Services/MessageService.ts`, `EditorService.ts`, `FileService.ts`, `TemplateService.ts`
+  - Editor/message/file/template coordination.
+
+### Views and utilities
+
+- `src/Views/*`
+  - Obsidian modals and settings UI.
+  - Keep business logic out of views when practical.
+
+- `src/Utilities/*`
+  - Stateless helpers. Prefer adding pure behavior here when no service state is needed.
+
+### Models and types
+
+- `src/Models/*`
+  - Internal config/message/tool models.
+
+- `src/Types/*`
+  - Cross-cutting service/provider contracts.
+
+## Important implementation rules
+
+### DRY
+
+Provider metadata is currently duplicated across config, settings UI, frontmatter helpers, command utilities, and adapters. Until a provider registry exists, search before changing provider behavior.
+
+```bash
+rg "openai|anthropic|gemini|openrouter|ollama|lmstudio|zai" src
+```
+
+### KISS
+
+- Prefer small pure helper extraction over large rewrites.
+- Keep command handlers thin.
+- Keep `ServiceContainer` explicit.
+- Do not introduce a new DI framework or generic plugin system unless explicitly requested.
+
+### YAGNI
+
+- Do not build broad abstractions for hypothetical providers/tools.
+- Add the minimum structure needed for the current change.
+- Avoid heavy dependencies for simple parsing, formatting, or logging.
+
+## Adding a command
+
+1. Add/update a handler in `src/Commands/`.
+2. Implement the appropriate interface from `src/Commands/CommandHandler.ts`.
+3. Register it in `src/main.ts` using `CommandRegistrar` where possible.
+4. Keep command logic limited to orchestration and user-visible status.
+
+## Adding provider behavior today
+
+The project currently uses a unified `AiProviderService` plus provider adapters. Until a central provider registry is implemented, adding a provider requires coordinated edits:
+
+1. Add an adapter in `src/Services/Adapters/` implementing `ProviderAdapter`.
+2. Add provider constants/types in `src/Constants.ts` as needed.
+3. Add defaults in `src/Services/DefaultConfigs.ts`.
+4. Add settings fields/defaults in `src/Models/Config.ts`.
+5. Register the adapter in `src/Services/AiProviderService.ts`.
+6. Update URL/model/frontmatter helpers if needed.
+7. Update settings UI in `src/Views/ChatGPT_MDSettingsTab.ts`.
+8. Add/update docs and tests.
+
+## Working with settings/frontmatter
+
+Effective chat config is assembled from multiple layers. Preserve this priority unless explicitly changing behavior:
+
+1. provider defaults
+2. default chat frontmatter from settings
+3. global plugin settings
+4. referenced agent frontmatter/body
+5. note frontmatter
+
+When adding settings, update:
+
+- `ChatGPT_MDSettings`
+- `DEFAULT_SETTINGS`
+- settings UI schema/rendering
+- migrations if old data needs conversion
+- docs
+
+## Working with tools
+
+Tool calls may expose vault or web data. Never bypass approval modals or approval filtering. Keep tool result formatting deterministic and testable.
+
+## Logging and secrets
+
+- Do not log API keys.
+- Avoid logging full prompts or vault content by default.
+- Prefer debug-gated logging for request/stream internals.
+
+## Generated files
+
+- `main.js` is a build/release artifact. Do not edit it by hand.
+- Do not commit coverage output, `.DS_Store`, logs, or local editor state.
