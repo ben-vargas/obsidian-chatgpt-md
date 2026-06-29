@@ -29,20 +29,20 @@ ChatGPT MD is an Obsidian plugin that integrates multiple AI providers (OpenAI, 
 **Commands**:
 
 ```bash
-yarn dev           # Development with watch mode
-yarn build         # Production build with TypeScript checks
-yarn build:analyze # Build with bundle analysis
-yarn analyze       # Analyze bundle size without rebuilding
-yarn lint          # Check code quality
-yarn lint:fix      # Auto-fix linting issues
-yarn test          # Run tests
-yarn test:watch    # Run tests in watch mode
-yarn test:coverage # Run tests with coverage
+npm run dev           # Development with watch mode
+npm run build         # Production build with TypeScript checks
+npm run build:analyze # Build with bundle analysis
+npm run analyze       # Analyze bundle size without rebuilding
+npm run lint          # Check code quality
+npm run lint:fix      # Auto-fix linting issues
+npm test              # Run tests
+npm run test:watch    # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
 ```
 
-**Run single test file**: `yarn test path/to/test.test.ts`
+**Run single test file**: `npm test -- path/to/test.test.ts`
 
-**Test suite**: Uses Jest with tests in `src/**/*.test.ts`. Tests cover utility functions and pure functions. Tests are NOT used for services or command handlers (those are tested manually).
+**Test suite**: Uses Jest with tests in `src/**/*.test.ts`. Tests cover utilities, provider registry behavior, and streaming helpers. Service and command flows are primarily validated via build/tests plus manual Obsidian checks.
 
 ## Architecture Overview
 
@@ -52,11 +52,11 @@ The plugin uses **constructor injection** via a centralized `ServiceContainer`:
 - **Only place** where dependencies are defined via `ServiceContainer.create()`
 - All services receive dependencies through constructors (no service locator pattern)
 
-**AI SDK**: Uses Vercel AI SDK (`ai` package) with provider-specific adapters (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`, `@openrouter/ai-sdk-provider`, `@ai-sdk/openai-compatible`).
+**AI SDK**: Uses Vercel AI SDK (`ai` package) with provider-specific adapters (`@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google`, `@openrouter/ai-sdk-provider`, `@ai-sdk/openai-compatible`). System/developer messages are converted to the AI SDK `instructions` option before calling `generateText()`/`streamText()`.
 
 **HTTP Layer**: Uses `requestStream.ts` on desktop (Node.js http/https modules) with fallback to native `fetch()` on mobile. Wrapped by `ApiService.createFetchAdapter()` for AI SDK compatibility.
 
-**Message flow**: User invokes chat command → EditorService extracts messages → MessageService parses (splits by `<hr class="__chatgpt_plugin">`, extracts `role::assistant` format, resolves wiki links) → SettingsService.getFrontmatter() merges per-note settings → AiProviderService selects adapter → API call via Vercel AI SDK → StreamingHandler streams response → EditorService inserts into editor
+**Message flow**: User invokes chat command → SettingsService/EditorService resolve merged frontmatter (including agents) → EditorService extracts messages → MessageService parses (splits by `<hr class="__chatgpt_plugin">`, extracts `role::assistant` format, resolves wiki links) → ChatHandler prepends agent/system commands → AiProviderService selects adapter/provider from model prefix → system/developer messages become AI SDK `instructions` → API call via Vercel AI SDK → StreamingHandler streams response → EditorService processes the response
 
 ## Code Organization
 
@@ -87,23 +87,18 @@ Each directory has its own CLAUDE.md with detailed context:
 
 ## Adding a New AI Provider
 
-1. Create adapter in `src/Services/Adapters/` implementing `ProviderAdapter`
-2. Add to `ProviderType` union in `Constants.ts`
-3. Register adapter in `AiProviderService` constructor's adapter map
-4. Add default configuration to `DefaultConfigs.ts`
-5. Add to settings UI in `ChatGPT_MDSettingsTab.ts`
-6. Add URL and API key settings to `Config.ts` interfaces
+See `src/Services/Providers/CLAUDE.md` for the authoritative step-by-step workflow (constants, defaults, settings model, adapter, registry, UI schema, docs/tests). Short version: add an adapter in `src/Services/Adapters/`, then register it once in `src/Services/Providers/ProviderRegistry.ts`.
 
 ## Model Selection
 
 Models are specified with provider prefix:
 
-- OpenAI: `gpt-4o` (no prefix, default)
-- Anthropic: `anthropic@claude-3-5-sonnet`
-- Gemini: `gemini@gemini-1.5-pro`
+- OpenAI: `openai@gpt-4.1-mini` (OpenAI is also the fallback for unprefixed model IDs)
+- Anthropic: `anthropic@claude-sonnet-4-20250514`
+- Gemini: `gemini@gemini-2.5-flash-lite`
 - Ollama: `ollama@llama3.2`
 - OpenRouter: `openrouter@anthropic/claude-3-5-sonnet`
 - LM Studio: `lmstudio@model-name`
-- Z.AI: `zai@glm-4.6`
+- Z.AI: `zai@glm-4.7`
 
-The prefix determines which adapter handles the request in `AiProviderService`.
+The prefix determines which adapter handles the request in `AiProviderService`. OpenAI `search-preview` models must use the OpenAI chat-completions factory (`provider.chat(...)`) because the default Responses API path can return `Model not found` for those IDs.

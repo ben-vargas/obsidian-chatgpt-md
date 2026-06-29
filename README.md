@@ -91,7 +91,7 @@ Make AI personas for different tasks:
 ```markdown
 # agents/WritingCoach.md
 ---
-model: gpt-4o
+model: openai@gpt-4.1-mini
 temperature: 0.8
 ---
 You are a supportive writing coach. Help the user:
@@ -132,9 +132,13 @@ You: Select what to share ✓
 | **LM Studio** | Local, private | **Free** |
 
 **Model prefix examples:**
-- OpenAI: `gpt-4o` (default, no prefix needed)
-- Anthropic: `anthropic@claude-3-5-sonnet`
+- OpenAI: `openai@gpt-4.1-mini` (unprefixed OpenAI model IDs also work)
+- Anthropic: `anthropic@claude-sonnet-4-20250514`
+- Gemini: `gemini@gemini-2.5-flash-lite`
+- OpenRouter: `openrouter@openai/gpt-4.1-mini`
 - Local: `ollama@llama3.2` or `lmstudio@model-name`
+
+OpenAI search-preview models such as `openai@gpt-4o-mini-search-preview` are supported through OpenAI's chat-completions endpoint.
 
 ---
 
@@ -158,7 +162,7 @@ You: Select what to share ✓
 
 ```yaml
 ---
-model: gpt-4o              # Which AI to use
+model: openai@gpt-4.1-mini # Which AI to use
 temperature: 0.7         # Creativity (0-2)
 max_tokens: 4096         # Response length
 system_commands:        # Give AI a role
@@ -174,7 +178,7 @@ agent: WritingCoach      # Apply an agent by name
 - **Folders** — Where to save chats, templates, agents
 - **Stream Mode** — See responses appear word by word
 
-**Priority:** Note settings beat Agent settings beat Global settings
+**Priority:** Note settings beat Agent settings beat Global settings beat default chat frontmatter/provider defaults
 
 ---
 
@@ -225,15 +229,15 @@ A: A reusable AI persona. Like having different experts on call—writing coach 
 ```bash
 git clone https://github.com/bramses/chatgpt-md.git
 cd chatgpt-md
-yarn install
-yarn dev
+npm install
+npm run dev
 ```
 
 **Project structure:**
 ```
 src/
 ├── Commands/     # User actions
-├── Services/     # AI providers, adapters
+├── Services/     # AI providers, adapters, tools
 ├── Views/        # UI, modals
 ├── Utilities/    # Pure functions (tested)
 └── core/         # Dependency injection

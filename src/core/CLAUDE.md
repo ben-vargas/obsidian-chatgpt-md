@@ -39,6 +39,7 @@ This directory contains the core architectural components: the dependency inject
 
 6. **AI service factory**:
    - `aiProviderService: () => AiProviderService` - Factory function creating new instances per request
+   - Each AiProviderService instance builds its adapter map from `Providers/ProviderRegistry.ts`
    - AiProviderService.setSaveSettingsCallback() called with settingsService.saveSettings
 
 7. **Tool services** (v3.0):
@@ -68,7 +69,7 @@ container.agentService; // Direct access
 
 - **ServiceLocator.ts** → **ServiceContainer.ts**: No longer uses string-based lookups
 - **CommandRegistry.ts** → Moved to `src/Commands/` directory
-- **Individual AI services** → Consolidated into `AiProviderService` with adapter pattern
+- **Individual AI services** → Consolidated into `AiProviderService` with adapter pattern and a provider registry
 
 ## main.ts
 

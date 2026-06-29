@@ -4,107 +4,15 @@ TypeScript type definitions for AI services.
 
 ## AiTypes.ts
 
-**Core AI service interfaces and types**
+Core AI service interfaces and types. Signatures live in the file; below is an index of what each type represents and the non-obvious invariants.
 
-### IAiApiService
-
-Contract for AI service implementations (currently implemented by `AiProviderService`):
-
-```typescript
-interface IAiApiService {
-  callAiAPI(
-    messages: Message[],
-    options: Record<string, unknown>,
-    headingPrefix: string,
-    url: string,
-    editor?: Editor,
-    setAtCursor?: boolean,
-    apiKey?: string,
-    settings?: ChatGPT_MDSettings,
-    toolService?: ToolService
-  ): Promise<{ fullString: string; mode: string; wasAborted?: boolean }>;
-
-  inferTitle(
-    view: MarkdownView,
-    settings: ChatGPT_MDSettings,
-    messages: string[],
-    editorService: EditorService
-  ): Promise<string>;
-
-  fetchAvailableModels(
-    url: string,
-    apiKey?: string,
-    settings?: ChatGPT_MDSettings,
-    providerType?: string
-  ): Promise<string[]>;
-}
-```
-
-### AiProviderInstance
-
-Function type that creates language models from model IDs:
-
-```typescript
-interface AiProviderInstance {
-  (modelId: string): LanguageModel;
-}
-```
-
-### ProviderFactoryConfig
-
-Configuration for creating AI SDK providers:
-
-```typescript
-interface ProviderFactoryConfig {
-  apiKey: string;
-  baseURL: string;
-  fetch?: typeof fetch;
-  name: string; // Required for OpenAICompatible providers
-}
-```
-
-### ProviderFactory
-
-Factory function type for creating providers:
-
-```typescript
-type ProviderFactory = (config: ProviderFactoryConfig | unknown) => AiProviderInstance;
-```
-
-### AiProvider
-
-Union type of all Vercel AI SDK provider types:
-
-```typescript
-type AiProvider =
-  | OpenAIProvider
-  | OpenAICompatibleProvider
-  | AnthropicProvider
-  | GoogleProvider
-  | OpenRouterProvider;
-```
-
-### StreamingResponse
-
-Response type for streaming API calls:
-
-```typescript
-type StreamingResponse = {
-  fullString: string;
-  mode: "streaming";
-  wasAborted?: boolean;
-};
-```
-
-### OllamaModel
-
-Model interface for Ollama API responses:
-
-```typescript
-interface OllamaModel {
-  name: string;
-}
-```
+- `IAiApiService` - Contract for AI service implementations; currently implemented by `AiProviderService` only. Methods: `callAiAPI` (streaming + non-streaming), `inferTitle`, `fetchAvailableModels`
+- `AiProviderInstance` - `(modelId) => LanguageModel`. The OpenAI provider also exposes `.chat(modelId)`; `AiProviderService` uses it for search-preview models that must hit `/v1/chat/completions`
+- `ProviderFactoryConfig` - `{ apiKey, baseURL, fetch?, name }`; `name` is required for OpenAI-compatible providers
+- `ProviderFactory` - `(config: ProviderFactoryConfig) => AiProviderInstance`
+- `AiProvider` - Union of the Vercel AI SDK provider types used by this plugin (OpenAI, OpenAICompatible, Anthropic, Google, OpenRouter)
+- `StreamingResponse` - `{ fullString, mode: "streaming", wasAborted? }`
+- `OllamaModel` - `{ name }` (Ollama `/api/tags` list entry)
 
 ## ProviderAdapter Types
 
@@ -114,3 +22,5 @@ See `src/Services/Adapters/ProviderAdapter.ts` for:
 - `AiProviderConfig` - Unified configuration interface
 - `ProviderModelData` - Model data from API responses
 - `ProviderAdapter` - Adapter contract interface
+
+Provider factories and adapter metadata are registered in `src/Services/Providers/ProviderRegistry.ts`.

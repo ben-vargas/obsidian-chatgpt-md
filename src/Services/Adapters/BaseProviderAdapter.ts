@@ -1,4 +1,5 @@
 import { ChatGPT_MDSettings } from "src/Models/Config";
+import { Logger } from "src/Utilities/Logger";
 import { ProviderAdapter, ProviderType } from "./ProviderAdapter";
 
 /**
@@ -68,9 +69,24 @@ export abstract class BaseProviderAdapter implements ProviderAdapter {
   /**
    * Handle fetch models error with consistent logging
    */
-  protected handleFetchError(error: any, customMessage?: string): void {
+  protected handleFetchError(error: unknown, customMessage?: string): void {
     const errorMessage = customMessage || `Error fetching ${this.displayName} models`;
     console.error(`${errorMessage}:`, error);
+  }
+
+  /**
+   * Connection refusal is expected when an optional local provider is not running.
+   * Keep it available for diagnostics without presenting it as an application error.
+   */
+  protected handleLocalFetchError(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+
+    if (/ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(message)) {
+      Logger.debug(`[ChatGPT MD] ${this.displayName} is not running; skipping model discovery.`);
+      return;
+    }
+
+    this.handleFetchError(error);
   }
 
   /**

@@ -77,7 +77,7 @@ Four wizard steps (`WizardStep` type):
 3. **`wizard-loading`**: Loading spinner while AI generates configuration
 4. **`manual-form`**: Form with name, model (with autocomplete), temperature slider, and system prompt textarea
 
-**AI Wizard flow**: Calls `AiProviderService.callAiAPI()` with `AGENT_WIZARD_SYSTEM_PROMPT` → parses JSON response (`{name, temperature, prompt}`) → pre-fills manual form for review
+**AI Wizard flow**: Calls `AiProviderService.callAiAPI()` with `AGENT_WIZARD_SYSTEM_PROMPT` as a system message (converted to AI SDK `instructions` by the service) → parses JSON response (`{name, temperature, prompt}`) → pre-fills manual form for review
 
 - Model selection uses inline suggestions (filterable dropdown from available models list)
 - `parseWizardResponse()` handles both clean JSON and JSON embedded in markdown code fences
@@ -96,7 +96,7 @@ Features:
 
 - Shows all available models from configured services
 - Supports fuzzy search
-- Prefixes models with service name (e.g., `ollama@llama3.2`)
+- Shows provider-prefixed models returned by adapters (e.g., `openai@gpt-4.1-mini`, `ollama@llama3.2`, `openrouter@openai/gpt-4.1-mini`)
 - Updates note frontmatter when model selected
 
 Behavior:
@@ -120,11 +120,11 @@ Extends `SuggestModal<TFile>`
 
 ## Settings
 
-### ChatGPT_MDSettingsTab.ts
+### ChatGPT_MDSettingsTab.ts + settingsSchema.ts
 
 **Plugin settings UI**
 
-Extends `PluginSettingTab`
+`ChatGPT_MDSettingsTab.ts` extends `PluginSettingTab` and renders definitions from `settingsSchema.ts`. Prefer adding/changing settings in the schema rather than hardcoding UI rows in the tab.
 
 Settings organized in sections:
 
@@ -132,7 +132,7 @@ Settings organized in sections:
 
 **Service URLs**: Per-provider base URLs with defaults
 
-**Default Models**: Per-provider default model selection
+**Default Models**: Per-provider default model selection (OpenAI defaults use `openai@...` prefixes; unprefixed IDs still fall back to OpenAI at request time)
 
 **Default Parameters**: Temperature, max_tokens, top_p per provider
 

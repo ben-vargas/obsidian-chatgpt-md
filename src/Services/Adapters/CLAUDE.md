@@ -13,35 +13,11 @@ The adapter pattern enables:
 
 ## ProviderAdapter.ts
 
-**Interface and type definitions**
+**Interface and type definitions** (signatures live in the file)
 
-### ProviderType
-
-```typescript
-type ProviderType = "openai" | "anthropic" | "ollama" | "openrouter" | "gemini" | "lmstudio" | "zai";
-```
-
-### AiProviderConfig
-
-Unified configuration for all providers:
-
-```typescript
-interface AiProviderConfig {
-  provider: ProviderType;
-  model: string;
-  maxTokens: number;
-  temperature: number;
-  stream: boolean;
-  url: string;
-  title: string;
-  system_commands: string[] | null;
-  tags: string[] | null;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  apiKey?: string;
-}
-```
+- `ProviderType` - Union of supported provider ids: `openai | anthropic | ollama | openrouter | gemini | lmstudio | zai`
+- `AiProviderConfig` - Unified config passed to providers: `provider`, `model`, `maxTokens`, `temperature`, `stream`, `url`, `title`, `system_commands`, `tags`, plus optional `topP` / `frequencyPenalty` / `presencePenalty` / `apiKey`
+- `ProviderModelData` - Normalized model-listing entry returned by `fetchModels()`
 
 ### ProviderAdapter Interface
 
@@ -79,6 +55,7 @@ Default implementations:
 - Auth: `Authorization: Bearer {key}`
 - Uses Vercel AI SDK `createOpenAI()`
 - `getApiPathSuffix()` → "/v1"
+- OpenAI `*-search-preview` model IDs are listed by `/v1/models` but must be called through `provider.chat(modelName)` in `AiProviderService.createLanguageModel()` so they hit `/v1/chat/completions` instead of `/v1/responses`
 
 ### AnthropicAdapter.ts
 
@@ -135,8 +112,8 @@ Default implementations:
 
 1. Create new adapter extending `BaseProviderAdapter`
 2. Override provider-specific methods (URL, auth headers, model fetching)
-3. Add to `ProviderType` union in `Constants.ts`
-4. Register adapter in `AiProviderService` constructor's adapter map
-5. Add default configuration to `DefaultConfigs.ts`
-6. Add to settings UI in `ChatGPT_MDSettingsTab.ts`
-7. Add URL and API key settings to `Config.ts` interfaces
+3. Add provider constants/types in `Constants.ts` as needed
+4. Add default configuration to `DefaultConfigs.ts`
+5. Add URL/API-key/default settings to `Config.ts`
+6. Register adapter, AI SDK factory, settings keys, and frontmatter defaults in `src/Services/Providers/ProviderRegistry.ts`
+7. Update settings schema/UI, docs, and tests

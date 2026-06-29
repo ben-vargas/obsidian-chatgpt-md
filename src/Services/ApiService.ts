@@ -79,24 +79,19 @@ export class ApiService {
    * @param serviceType The AI service type (openai, openrouter, ollama)
    * @returns The parsed response data
    */
-  async makeGetRequest(url: string, headers: Record<string, string>, serviceType: string): Promise<any> {
-    try {
-      const responseObj = await requestUrl({
-        url,
-        method: "GET",
-        headers,
-        throw: false,
-      });
+  async makeGetRequest(url: string, headers: Record<string, string>, _serviceType: string): Promise<any> {
+    const responseObj = await requestUrl({
+      url,
+      method: "GET",
+      headers,
+      throw: false,
+    });
 
-      if (responseObj.status !== 200) {
-        throw new Error(`Failed to fetch data from ${url}: ${responseObj.status}`);
-      }
-
-      return responseObj.json;
-    } catch (error) {
-      console.error(`Error making GET request to ${serviceType}:`, error);
-      throw error;
+    if (responseObj.status !== 200) {
+      throw new Error(`Failed to fetch data from ${url}: ${responseObj.status}`);
     }
+
+    return responseObj.json;
   }
 
   /**

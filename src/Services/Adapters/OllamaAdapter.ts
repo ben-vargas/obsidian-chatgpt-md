@@ -45,7 +45,7 @@ export class OllamaAdapter extends BaseProviderAdapter {
         })
         .map((model: OllamaModel) => this.prefixModelId(model.name));
     } catch (error) {
-      this.handleFetchError(error);
+      this.handleLocalFetchError(error);
       return [];
     }
   }

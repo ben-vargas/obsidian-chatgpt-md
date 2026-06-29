@@ -104,11 +104,30 @@ Pure helper functions extracted from services for reusability and testability. F
 
 ### ErrorMessageFormatter.ts
 
-**User-friendly error messages**
+**User-facing error messages and HTTP status mapping**
 
-- `formatApiError(error, provider)` - Format API error for display
-- HTTP status code mapping to user-friendly messages
-- Provider-specific error message formatting
+- `ErrorMessages` - Categorized message templates (API, VAULT, TOOL, VALIDATION, SETTINGS)
+- `getHttpErrorMessage(status)` - Map an HTTP status code to a user-friendly message
+- `formatErrorForLogging(error, context?)` - Detailed message (with stack) for logs
+- `extractErrorMessage(error)` - Pull a clean message out of varied error shapes
+- `formatError(error, context?)` - Prefix a message with context for display
+
+### AiErrorFormatter.ts
+
+**Streaming/retry error formatting**
+
+- `formatStreamError(error)` - Unwrap `AI_RetryError` cause chains into a readable message
+- `isRetryError(error)` - Detect Vercel AI SDK retry errors
+
+## Logging
+
+### Logger.ts
+
+**Gated, secret-safe console logging**
+
+- `Logger.debug/warn/error(message, context?)` - `debug` is gated by `setDebugEnabled()`; `warn`/`error` always log
+- Context objects are recursively redacted: keys matching `apiKey|key|token|authorization` become `[REDACTED]`
+- Prefer this over raw `console.*` whenever the payload may contain credentials
 
 ## Modal Utilities
 
@@ -123,11 +142,11 @@ Pure helper functions extracted from services for reusability and testability. F
 
 ## Testing
 
-Tests are located alongside utilities in `*.test.ts` files:
+Tests live alongside utilities in `*.test.ts` files:
 
 - `TextHelpers.test.ts`
 - `MessageHelpers.test.ts`
 - `FrontmatterHelpers.test.ts`
-- `StreamingHandler.test.ts`
+- `AiErrorFormatter.test.ts`
 
-Run tests with: `yarn test` or `yarn test path/to/test.test.ts`
+Note: `StreamingHandler.test.ts` lives in `src/Services/`, not here. Run with `npm test` or `npm test -- path/to/test.test.ts`.

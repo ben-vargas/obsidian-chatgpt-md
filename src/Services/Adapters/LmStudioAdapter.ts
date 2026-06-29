@@ -46,7 +46,7 @@ export class LmStudioAdapter extends BaseProviderAdapter {
 
       return [];
     } catch (error) {
-      this.handleFetchError(error);
+      this.handleLocalFetchError(error);
       return [];
     }
   }

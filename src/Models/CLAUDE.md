@@ -84,7 +84,7 @@ All settings can be overridden per-note:
 
 ```yaml
 ---
-model: ollama@llama3.2
+model: openai@gpt-4.1-mini
 temperature: 0.7
 max_tokens: 2000
 stream: true
@@ -95,7 +95,7 @@ agent: CodingExpert
 
 **Merge priority**: defaultConfig < defaultFrontmatter < settings < agentFrontmatter < noteFrontmatter
 
-Agent frontmatter is resolved when note contains `agent: AgentName` field. The agent body becomes `_agentSystemMessage` which is prepended as a system message.
+Agent frontmatter is resolved when note contains `agent: AgentName` field. The agent body becomes `_agentSystemMessage`, which `ChatHandler` prepends as a system message. `AiProviderService` later converts system/developer messages into the AI SDK `instructions` option.
 
 ### MergedFrontmatterConfig
 
@@ -146,45 +146,9 @@ Describes executable tools:
 - `file_read` - Read specific files
 - `web_search` - Web search via Brave API
 
-## Constants.ts (in src/)
+## Constants
 
-Key constants used across the codebase:
-
-**Provider Types**:
-
-```typescript
-type AiServiceType = "openai" | "ollama" | "openrouter" | "lmstudio" | "anthropic" | "gemini" | "zai";
-```
-
-**Message Format**:
-
-- `ROLE_IDENTIFIER = "role::"` - Role prefix in editor
-- `HORIZONTAL_LINE_MD = '<hr class="__chatgpt_plugin">'` - Message separator
-- `COMMENT_BLOCK_START` / `COMMENT_BLOCK_END` - Comment markers
-
-**Link Detection**:
-
-- `WIKI_LINKS_REGEX` - Matches `[[Title]]`
-- `MARKDOWN_LINKS_REGEX` - Matches `[Text](path)`
-
-**Agent Constants**:
-
-- `AGENT_FOLDER_TYPE` - Folder type identifier for agent folder
-- `CHOOSE_AGENT_COMMAND_ID` / `CREATE_AGENT_COMMAND_ID` - Command IDs for agent handlers
-- `AGENT_WIZARD_SYSTEM_PROMPT` - System prompt used by AI Wizard to generate agent configurations (name, temperature, prompt as JSON)
-
-**Error Messages**:
-
-- `CHAT_ERROR_MESSAGE_401` - Authorization error
-- `CHAT_ERROR_MESSAGE_404` - Not found error
-- `CHAT_ERROR_MESSAGE_NO_CONNECTION` - Network error
-- `TRUNCATION_ERROR_FULL` / `TRUNCATION_ERROR_PARTIAL` - Token limit warnings
-
-**Timing**:
-
-- `FETCH_MODELS_TIMEOUT_MS = 6000` - Model fetch timeout
-- `NOTICE_DURATION_SHORT_MS = 6000` - Short notification
-- `NOTICE_DURATION_LONG_MS = 9000` - Long notification
+Cross-cutting constants (provider IDs, command IDs, message-format markers, link regexes, error messages, timing) live in `src/Constants.ts`; `src/CLAUDE.md` describes the file's role. Read the source for exact values — they drift from docs.
 
 ## Types/ Directory
 

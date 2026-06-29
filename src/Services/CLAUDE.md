@@ -15,13 +15,7 @@ Key responsibilities:
 - `fetchAvailableModels()` - Get models from any provider
 - `stopStreaming()` - Abort in-progress streams
 
-Uses Vercel AI SDK (`ai` package) with provider factories:
-
-- `createOpenAI` - OpenAI
-- `createAnthropic` - Anthropic
-- `createGoogle` - Gemini
-- `createOpenRouter` - OpenRouter
-- `createOpenAICompatible` - Ollama, LM Studio, Z.AI
+Uses Vercel AI SDK (`ai` package); per-provider factories, endpoints, and auth are documented in `Adapters/CLAUDE.md`, and the registry wiring in `Providers/CLAUDE.md`.
 
 AI SDK 7 prompt handling:
 
@@ -29,7 +23,9 @@ AI SDK 7 prompt handling:
 - Only `user` and `assistant` messages are passed through `messages`
 - Instructions are preserved for streaming, non-streaming, and tool-result continuation calls
 
-**Provider selection**: Based on model prefix (e.g., `ollama@llama3.2`, `openrouter@anthropic/claude-3-5-sonnet`)
+**Provider selection**: Based on model prefix (e.g., `openai@gpt-4.1-mini`, `ollama@llama3.2`, `openrouter@anthropic/claude-3-5-sonnet`). Unprefixed models fall back to OpenAI.
+
+**OpenAI search models**: `createLanguageModel()` routes OpenAI `*-search-preview` models through `provider.chat(modelName)` so they use `/v1/chat/completions`; the default OpenAI provider path uses `/v1/responses`, where those listed models can return `Model not found`.
 
 **URL Construction**:
 
@@ -146,7 +142,7 @@ Model prefix parsing:
 - `getSettings()` - Provide settings to other services
 - `getFrontmatter(view)` - Get merged frontmatter config with full priority chain (defaultConfig < defaultFrontmatter < settings < agentFrontmatter < noteFrontmatter)
 - `updateFrontmatterField(editor, key, value)` - Update a field in note frontmatter
-- `generateFrontmatter()` - Generate frontmatter for new chats using data-driven `PROVIDER_FRONTMATTER_FIELDS` mapping
+- `generateFrontmatter()` - Generate frontmatter for new chats using `getProviderFrontmatterFields()` from `Providers/ProviderRegistry.ts`
 - `resolveAgentFrontmatter()` - Private method that resolves agent by name from note's `agent` field, merges agent frontmatter and attaches `_agentSystemMessage` from agent body
 - `setAgentService()` - Late-binding for AgentService (same pattern as TemplateService)
 
@@ -171,6 +167,10 @@ Model prefix parsing:
 - `DEFAULT_LMSTUDIO_CONFIG`
 - `DEFAULT_ZAI_CONFIG`
 
+### Providers/ProviderRegistry.ts
+
+Central provider metadata and factory registry. See `Providers/CLAUDE.md` for `PROVIDER_DEFINITIONS` semantics, the helper functions, and the provider add/change workflow.
+
 ## Tool Services (v3.0)
 
 ### ToolService.ts
@@ -188,7 +188,7 @@ Coordinates VaultSearchService and WebSearchService with approval modals.
 **Whitelist-based tool support detection**
 
 - `isModelWhitelisted(model, whitelist)` - Check if model supports tools
-- `getDefaultToolWhitelist()` - Returns default whitelist (GPT-4, Claude, Gemini models)
+- `getDefaultToolWhitelist()` - Returns default whitelist (tested OpenAI, Anthropic, Gemini, OpenRouter, and local-compatible patterns)
 
 Tool calling is only available for whitelisted models (configurable in settings).
 
@@ -227,7 +227,7 @@ Tool calling is only available for whitelisted models (configurable in settings)
 
 ```markdown
 ---
-model: gpt-4o
+model: openai@gpt-4.1-mini
 temperature: 0.7
 stream: true
 ---

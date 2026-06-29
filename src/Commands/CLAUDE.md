@@ -49,13 +49,13 @@ Flow:
 2. Parse frontmatter for model/settings (merge with global settings, including agent resolution)
 3. Build system messages from agent body (`_agentSystemMessage`) and `system_commands` frontmatter
 4. Get appropriate AI adapter from AiProviderService (based on model prefix)
-5. Call AI API with messages + config via Vercel AI SDK
+5. Call AI API with messages + config via Vercel AI SDK (`AiProviderService` converts system/developer messages into the AI SDK `instructions` option)
 6. Stream response to editor via StreamingHandler
 7. Optional auto title inference after 4+ messages
 
 Uses `ServiceContainer` for dependency injection.
 
-`buildSystemMessages()` prepends system messages in order: agent body first, then `system_commands` array entries.
+`buildSystemMessages()` prepends system messages in order: agent body first, then `system_commands` array entries. API errors are passed to `ErrorService.handleApiError()` with model and URL context so user-facing errors show the exact failing endpoint/model.
 
 ### ModelSelectHandler.ts
 
