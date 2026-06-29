@@ -105,22 +105,8 @@ export class ServiceContainer {
   static create(app: App, plugin: Plugin): ServiceContainer {
     const infrastructure = this.createInfrastructureServices();
     const content = this.createContentServices(app, infrastructure.notificationService);
-    const settingsService = new SettingsService(
-      plugin,
-      content.frontmatterManager,
-      infrastructure.notificationService,
-      infrastructure.errorService
-    );
-    const editorService = new EditorService(
-      app,
-      content.fileService,
-      content.messageService,
-      undefined,
-      settingsService
-    );
-    const templateService = new TemplateService(app, content.fileService, editorService);
-    const agentService = new AgentService(app, content.fileService, content.frontmatterManager);
-    settingsService.setAgentService(agentService);
+    const composites = this.createCompositeServices(app, plugin, infrastructure, content);
+    const { settingsService, editorService, templateService, agentService } = composites;
 
     const aiProviderService = () => new AiProviderService();
     AiProviderService.setSaveSettingsCallback(settingsService.saveSettings.bind(settingsService));
@@ -131,7 +117,7 @@ export class ServiceContainer {
       app,
       content.fileService,
       infrastructure.notificationService,
-      settingsService.getSettings(),
+      composites.settingsService.getSettings(),
       vaultSearchService,
       webSearchService
     );
@@ -155,6 +141,40 @@ export class ServiceContainer {
       webSearchService,
       toolService
     );
+  }
+
+  private static createCompositeServices(
+    app: App,
+    plugin: Plugin,
+    infrastructure: ReturnType<typeof ServiceContainer.createInfrastructureServices>,
+    content: ReturnType<typeof ServiceContainer.createContentServices>
+  ): {
+    settingsService: SettingsService;
+    editorService: EditorService;
+    templateService: TemplateService;
+    agentService: AgentService;
+  } {
+    const settingsService = new SettingsService(
+      plugin,
+      content.frontmatterManager,
+      infrastructure.notificationService,
+      infrastructure.errorService
+    );
+    const editorService = new EditorService(
+      app,
+      content.fileService,
+      content.messageService,
+      undefined,
+      settingsService
+    );
+    const agentService = new AgentService(app, content.fileService, content.frontmatterManager);
+    settingsService.setAgentService(agentService);
+    return {
+      settingsService,
+      editorService,
+      agentService,
+      templateService: new TemplateService(app, content.fileService, editorService),
+    };
   }
 
   private static createInfrastructureServices(): {
