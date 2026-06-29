@@ -44,19 +44,10 @@ export class VaultSearchService {
     context: ToolExecutionContext
   ): Promise<VaultSearchResult[]> {
     const { query, limit = 10 } = args;
-    const lowerQuery = query.toLowerCase();
-
-    // Split query into individual words for OR search
-    const queryWords = lowerQuery.split(/\s+/).filter((word) => word.length > 0);
-
+    const queryWords = this.getQueryWords(query);
     const results: VaultSearchResult[] = [];
-
-    // Get all markdown files
     const files = this.app.vault.getMarkdownFiles();
-
-    // Get the current file path to exclude it from search
-    const currentFile = this.app.workspace.getActiveFile();
-    const currentFilePath = currentFile?.path;
+    const currentFilePath = this.app.workspace.getActiveFile()?.path;
 
     for (const file of files) {
       // Check if aborted
@@ -69,37 +60,20 @@ export class VaultSearchService {
         continue;
       }
 
-      const lowerBasename = file.basename.toLowerCase();
-
-      // Check if filename matches any query word
-      let filenameMatch = false;
-      for (const word of queryWords) {
-        if (lowerBasename.includes(word)) {
-          filenameMatch = true;
-          break;
-        }
-      }
-
-      if (filenameMatch) {
+      if (this.matchesFileName(file, queryWords)) {
         results.push({
           path: file.path,
           basename: file.basename,
           matches: 1,
         });
       } else {
-        // Check if file content matches any query word
-        const content = await this.app.vault.read(file);
-        const lowerContent = content.toLowerCase();
-
-        for (const word of queryWords) {
-          if (lowerContent.includes(word)) {
-            results.push({
-              path: file.path,
-              basename: file.basename,
-              matches: 1,
-            });
-            break;
-          }
+        const contentMatches = await this.matchesFileContent(file, queryWords);
+        if (contentMatches) {
+          results.push({
+            path: file.path,
+            basename: file.basename,
+            matches: 1,
+          });
         }
       }
 
@@ -110,6 +84,23 @@ export class VaultSearchService {
     }
 
     return results;
+  }
+
+  private getQueryWords(query: string): string[] {
+    return query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((word) => word.length > 0);
+  }
+
+  private matchesFileName(file: TFile, queryWords: string[]): boolean {
+    const lowerBasename = file.basename.toLowerCase();
+    return queryWords.some((word) => lowerBasename.includes(word));
+  }
+
+  private async matchesFileContent(file: TFile, queryWords: string[]): Promise<boolean> {
+    const lowerContent = (await this.app.vault.read(file)).toLowerCase();
+    return queryWords.some((word) => lowerContent.includes(word));
   }
 
   /**

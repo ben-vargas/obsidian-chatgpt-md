@@ -576,63 +576,92 @@ export class AiProviderService implements IAiApiService {
     );
 
     try {
-      const request = this.buildStreamRequest(
+      const fullText = await this.executeStreamingRequest({
         model,
+        modelName,
         aiSdkMessages,
         instructions,
-        abortController.signal,
+        abortSignal: abortController.signal,
         tools,
-        modelName,
-        settings
-      );
-
-      Logger.debug(`[ChatGPT MD] Starting streamText with request`, {
-        model: request.model,
-        messageCount: request.messages?.length,
-        hasAbortSignal: !!request.abortSignal,
+        settings,
+        toolService,
+        handler,
+        editor,
       });
 
-      handler.startBuffering();
-      const result = streamText(request);
+      if (!setAtCursor) editor.setCursor(handler.getCursor());
 
-      Logger.debug(`[ChatGPT MD] streamText initiated, consuming stream...`);
-      let fullText = await this.consumeStream(result, handler);
-      const finishReason = await result.finishReason;
-
-      Logger.debug(`[ChatGPT MD] Stream completed`, { fullTextLength: fullText.length });
-
-      this.checkForStreamError(finishReason);
-
-      // AI SDK 7 toolCalls contains calls accumulated across all steps. This
-      // request intentionally runs a single model step before the plugin's
-      // privacy approval flow handles any requested tools.
-      const toolCalls = toolService ? await result.toolCalls : [];
-      if (toolService && toolCalls.length > 0) {
-        fullText = await this.handleStreamToolCalls(
-          toolCalls,
-          fullText,
-          handler,
-          editor,
-          model,
-          aiSdkMessages,
-          instructions,
-          toolService,
-          modelName
-        );
-      }
-
-      if (!setAtCursor) {
-        editor.setCursor(handler.getCursor());
-      }
-
-      return {
-        fullString: fullText,
-        mode: "streaming",
-        wasAborted: this.apiService.wasAborted(),
-      };
+      return { fullString: fullText, mode: "streaming", wasAborted: this.apiService.wasAborted() };
     } catch (err: any) {
       return this.handleStreamError(err, handler, editor);
     }
+  }
+
+  private async executeStreamingRequest(options: {
+    model: LanguageModel;
+    modelName: string;
+    aiSdkMessages: Array<{ role: "user" | "assistant"; content: string }>;
+    instructions: string | undefined;
+    abortSignal: AbortSignal;
+    tools?: unknown;
+    settings?: ChatGPT_MDSettings;
+    toolService?: ToolService;
+    handler: StreamingHandler;
+    editor: Editor;
+  }): Promise<string> {
+    const request = this.buildStreamRequest(
+      options.model,
+      options.aiSdkMessages,
+      options.instructions,
+      options.abortSignal,
+      options.tools,
+      options.modelName,
+      options.settings
+    );
+
+    Logger.debug(`[ChatGPT MD] Starting streamText with request`, {
+      model: request.model,
+      messageCount: request.messages?.length,
+      hasAbortSignal: !!request.abortSignal,
+    });
+
+    options.handler.startBuffering();
+    const result = streamText(request);
+    const fullText = await this.consumeStream(result, options.handler);
+    const finishReason = await result.finishReason;
+    this.checkForStreamError(finishReason);
+
+    if (!options.toolService) return fullText;
+    return this.handleFinalToolCalls(result, fullText, options);
+  }
+
+  private async handleFinalToolCalls(
+    finalResult: ReturnType<typeof streamText>,
+    fullText: string,
+    options: {
+      model: LanguageModel;
+      modelName: string;
+      aiSdkMessages: Array<{ role: "user" | "assistant"; content: string }>;
+      instructions: string | undefined;
+      toolService?: ToolService;
+      handler: StreamingHandler;
+      editor: Editor;
+    }
+  ): Promise<string> {
+    const toolCalls = await finalResult.toolCalls;
+    if (!toolCalls?.length || !options.toolService) return fullText;
+
+    return this.handleStreamToolCalls(
+      toolCalls,
+      fullText,
+      options.handler,
+      options.editor,
+      options.model,
+      options.aiSdkMessages,
+      options.instructions,
+      options.toolService,
+      options.modelName
+    );
   }
 
   /**

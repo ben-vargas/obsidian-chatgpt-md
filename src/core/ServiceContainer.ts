@@ -103,69 +103,49 @@ export class ServiceContainer {
    * to composite services (depend on other services).
    */
   static create(app: App, plugin: Plugin): ServiceContainer {
-    // === Leaf services (no dependencies) ===
-    const notificationService = new NotificationService();
-    const errorService = new ErrorService(notificationService);
-    const apiService = new ApiService(errorService, notificationService);
-    const apiAuthService = new ApiAuthService(notificationService);
-
-    // === Content services ===
-    const fileService = new FileService(app);
-    const frontmatterManager = new FrontmatterManager(app);
-    const messageService = new MessageService(fileService, notificationService);
-
-    // === Settings service (now includes frontmatter operations) ===
-    const settingsService = new SettingsService(plugin, frontmatterManager, notificationService, errorService);
-
-    // === Editor service (composite, now includes content operations) ===
-    // Create with settingsService (now includes frontmatter operations)
+    const infrastructure = this.createInfrastructureServices();
+    const content = this.createContentServices(app, infrastructure.notificationService);
+    const settingsService = new SettingsService(
+      plugin,
+      content.frontmatterManager,
+      infrastructure.notificationService,
+      infrastructure.errorService
+    );
     const editorService = new EditorService(
       app,
-      fileService,
-      messageService,
-      undefined, // templateService - will be set after creation
+      content.fileService,
+      content.messageService,
+      undefined,
       settingsService
     );
-
-    // Now create templateService with the merged editorService
-    const templateService = new TemplateService(app, fileService, editorService);
-
-    // === Agent service ===
-    const agentService = new AgentService(app, fileService, frontmatterManager);
-
-    // Late-bind agent service to settings service (same pattern as templateService)
+    const templateService = new TemplateService(app, content.fileService, editorService);
+    const agentService = new AgentService(app, content.fileService, content.frontmatterManager);
     settingsService.setAgentService(agentService);
 
-    // === AI service factory ===
-    // Using a factory function to create new instances when needed
     const aiProviderService = () => new AiProviderService();
-
-    // Set the save settings callback for AI services
     AiProviderService.setSaveSettingsCallback(settingsService.saveSettings.bind(settingsService));
 
-    // === Tool services (consolidated) ===
-    const vaultSearchService = new VaultSearchService(app, fileService);
-    const webSearchService = new WebSearchService(notificationService);
+    const vaultSearchService = new VaultSearchService(app, content.fileService);
+    const webSearchService = new WebSearchService(infrastructure.notificationService);
     const toolService = new ToolService(
       app,
-      fileService,
-      notificationService,
+      content.fileService,
+      infrastructure.notificationService,
       settingsService.getSettings(),
       vaultSearchService,
       webSearchService
     );
 
-    // === Create container ===
     return new ServiceContainer(
       app,
       plugin,
-      notificationService,
-      errorService,
-      apiService,
-      apiAuthService,
-      fileService,
-      frontmatterManager,
-      messageService,
+      infrastructure.notificationService,
+      infrastructure.errorService,
+      infrastructure.apiService,
+      infrastructure.apiAuthService,
+      content.fileService,
+      content.frontmatterManager,
+      content.messageService,
       templateService,
       editorService,
       aiProviderService,
@@ -175,5 +155,33 @@ export class ServiceContainer {
       webSearchService,
       toolService
     );
+  }
+
+  private static createInfrastructureServices(): {
+    notificationService: NotificationService;
+    errorService: ErrorService;
+    apiService: ApiService;
+    apiAuthService: ApiAuthService;
+  } {
+    const notificationService = new NotificationService();
+    const errorService = new ErrorService(notificationService);
+    return {
+      notificationService,
+      errorService,
+      apiService: new ApiService(errorService, notificationService),
+      apiAuthService: new ApiAuthService(notificationService),
+    };
+  }
+
+  private static createContentServices(
+    app: App,
+    notificationService: NotificationService
+  ): { fileService: FileService; frontmatterManager: FrontmatterManager; messageService: MessageService } {
+    const fileService = new FileService(app);
+    return {
+      fileService,
+      frontmatterManager: new FrontmatterManager(app),
+      messageService: new MessageService(fileService, notificationService),
+    };
   }
 }

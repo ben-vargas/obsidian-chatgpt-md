@@ -92,35 +92,7 @@ export class ChatHandler {
 
       editorService.processResponse(editor, response, settings);
 
-      if (
-        settings.autoInferTitle &&
-        isTitleTimestampFormat(view?.file?.basename, settings.dateFormat) &&
-        messagesWithRoleAndMessage.length > MIN_AUTO_INFER_MESSAGES
-      ) {
-        // Create a settings object with the correct API key and model
-        const settingsWithApiKey: ChatGPT_MDSettings & { url?: string; model?: string } = {
-          ...settings,
-          ...frontmatter,
-          // Use the utility function to get the correct API key
-          openrouterApiKey: apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER),
-          // Use the centralized method for URL
-          url: getAiApiUrls(frontmatter)[frontmatter.aiService],
-        };
-
-        // Ensure model is set for title inference
-        if (!settingsWithApiKey.model) {
-          settingsWithApiKey.model = getDefaultModelForService(frontmatter.aiService);
-          if (!settingsWithApiKey.model) {
-            new Notice(
-              `Auto title inference skipped: No model configured for ${frontmatter.aiService}. Please set a model in settings.`,
-              NOTICE_DURATION_SHORT_MS
-            );
-            return;
-          }
-        }
-
-        await aiService.inferTitle(view, settingsWithApiKey as ChatGPT_MDSettings, messages, editorService);
-      }
+      await this.maybeInferTitle(view, frontmatter, settings, messagesWithRoleAndMessage, messages, aiService);
     } catch (err) {
       if (Platform.isMobile) {
         new Notice(`${PLUGIN_PREFIX} Calling ${frontmatter.model}. ` + err, NOTICE_DURATION_LONG_MS);
@@ -129,6 +101,53 @@ export class ChatHandler {
     }
 
     this.updateStatusBar("");
+  }
+
+  private async maybeInferTitle(
+    view: MarkdownView,
+    frontmatter: MergedFrontmatterConfig,
+    settings: ChatGPT_MDSettings,
+    messagesWithRole: Message[],
+    messages: string[],
+    aiService: ReturnType<ServiceContainer["aiProviderService"]>
+  ): Promise<void> {
+    if (!this.shouldInferTitle(view, settings, messagesWithRole)) return;
+
+    const settingsWithApiKey = this.buildTitleInferenceSettings(settings, frontmatter);
+    if (!this.ensureTitleInferenceModel(settingsWithApiKey, frontmatter.aiService)) return;
+
+    await aiService.inferTitle(view, settingsWithApiKey as ChatGPT_MDSettings, messages, this.services.editorService);
+  }
+
+  private shouldInferTitle(view: MarkdownView, settings: ChatGPT_MDSettings, messagesWithRole: Message[]): boolean {
+    return (
+      settings.autoInferTitle &&
+      isTitleTimestampFormat(view?.file?.basename, settings.dateFormat) &&
+      messagesWithRole.length > MIN_AUTO_INFER_MESSAGES
+    );
+  }
+
+  private buildTitleInferenceSettings(
+    settings: ChatGPT_MDSettings,
+    frontmatter: MergedFrontmatterConfig
+  ): ChatGPT_MDSettings & { url?: string; model?: string } {
+    return {
+      ...settings,
+      ...frontmatter,
+      openrouterApiKey: this.services.apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER),
+      url: getAiApiUrls(frontmatter)[frontmatter.aiService],
+    };
+  }
+
+  private ensureTitleInferenceModel(settings: ChatGPT_MDSettings & { model?: string }, aiService: string): boolean {
+    settings.model ||= getDefaultModelForService(aiService);
+    if (settings.model) return true;
+
+    new Notice(
+      `Auto title inference skipped: No model configured for ${aiService}. Please set a model in settings.`,
+      NOTICE_DURATION_SHORT_MS
+    );
+    return false;
   }
 
   /**

@@ -54,40 +54,13 @@ export class ErrorService {
     const url = options.context?.url || "";
     const contextInfo = this.formatContextInfo(model, url);
 
-    // Determine standardized error message
-    let userMessage = "";
-    let logMessage = "";
-
-    if (error instanceof Object) {
-      if (error.name === "AbortError") {
-        userMessage = "Request was cancelled";
-      } else if (error.message === ERROR_NO_CONNECTION) {
-        userMessage = ErrorMessages.API.NETWORK_ERROR;
-      } else if (error.status === 401 || error.error?.status === 401) {
-        userMessage = ErrorMessages.API.AUTH_FAILED;
-      } else if (error.status === 404 || error.error?.status === 404) {
-        userMessage = ErrorMessages.API.INVALID_MODEL;
-      } else if (error.status === 429 || error.error?.status === 429) {
-        userMessage = ErrorMessages.API.RATE_LIMIT;
-      } else if (error.status && error.status >= 400) {
-        userMessage = getHttpErrorMessage(error.status || error.error?.status);
-      } else if (error.error?.message) {
-        userMessage = error.error.message;
-      } else if (error.message) {
-        userMessage = error.message;
-      } else {
-        userMessage = "An unexpected error occurred";
-      }
-    } else {
-      userMessage = typeof error === "string" ? error : "An unexpected error occurred";
-    }
+    const userMessage = this.getUserMessage(error);
 
     const errorMessage = `${prefix}: ${userMessage}${contextInfo ? ` - ${contextInfo}` : ""}`;
 
     // Log to console if requested
     if (options.logToConsole) {
-      logMessage = formatErrorForLogging(error, serviceName);
-      console.error(logMessage);
+      console.error(formatErrorForLogging(error, serviceName));
     }
 
     // Show notification if requested
@@ -106,6 +79,21 @@ Model- ${model}, URL- ${url}`;
 
     // Throw error for caller to handle
     throw new Error(errorMessage);
+  }
+
+  private getUserMessage(error: any): string {
+    if (!(error instanceof Object)) return typeof error === "string" ? error : "An unexpected error occurred";
+    if (error.name === "AbortError") return "Request was cancelled";
+    if (error.message === ERROR_NO_CONNECTION) return ErrorMessages.API.NETWORK_ERROR;
+
+    const status = error.status || error.error?.status;
+    if (status === 401) return ErrorMessages.API.AUTH_FAILED;
+    if (status === 404) return ErrorMessages.API.INVALID_MODEL;
+    if (status === 429) return ErrorMessages.API.RATE_LIMIT;
+    if (status >= 400) return getHttpErrorMessage(status);
+    if (error.error?.message) return error.error.message;
+    if (error.message) return error.message;
+    return "An unexpected error occurred";
   }
 
   /**

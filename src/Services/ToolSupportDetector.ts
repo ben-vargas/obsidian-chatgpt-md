@@ -58,8 +58,7 @@ export function isModelWhitelisted(modelId: string, whitelist: string): boolean 
  *
  * For updates, see: scripts/tool-whitelist/README-WHITELIST-MAINTENANCE.md
  */
-export function getDefaultToolWhitelist(): string {
-  return `# OpenAI (36 patterns)
+const DEFAULT_TOOL_WHITELIST = `# OpenAI (36 patterns)
 codex-mini-latest
 gpt-3.5-turbo
 gpt-3.5-turbo-0125
@@ -243,4 +242,7 @@ z-ai/glm-4.7-flash
 glm-4
 glm-4.7
 glm-4.7-flash`;
+
+export function getDefaultToolWhitelist(): string {
+  return DEFAULT_TOOL_WHITELIST;
 }
