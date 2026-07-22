@@ -1,4 +1,4 @@
-import { App, TFile } from "obsidian";
+import { App } from "obsidian";
 import { z } from "zod";
 import { Message } from "./Message";
 
@@ -79,29 +79,12 @@ export interface VaultSearchResult {
 }
 
 /**
- * File selection for reading
- */
-export interface FileSelection {
-  file: TFile;
-  selected: boolean;
-  reason: string;
-}
-
-/**
  * Result from file read tool
  */
 export interface FileReadResult {
   path: string;
   content: string;
   size: number;
-}
-
-/**
- * Request to approve search results before showing to LLM
- */
-export interface SearchResultsApprovalRequest {
-  query: string;
-  results: VaultSearchResult[];
 }
 
 /**
@@ -120,14 +103,6 @@ export interface WebSearchResult {
   url: string;
   snippet: string;
   content?: string; // Full page content if fetched
-}
-
-/**
- * Web search approval request
- */
-export interface WebSearchApprovalRequest {
-  query: string;
-  results: WebSearchResult[];
 }
 
 /**

@@ -2,6 +2,7 @@ import { requestUrl } from "obsidian";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { ProviderModelData, ProviderType } from "./ProviderAdapter";
 import { BaseProviderAdapter } from "./BaseProviderAdapter";
+import { Logger } from "src/Utilities/Logger";
 
 /**
  * Model data from Anthropic API
@@ -19,10 +20,6 @@ export class AnthropicAdapter extends BaseProviderAdapter {
   readonly type: ProviderType = "anthropic";
   readonly displayName = "Anthropic";
 
-  getDefaultBaseUrl(): string {
-    return "https://api.anthropic.com";
-  }
-
   getAuthHeaders(apiKey: string): Record<string, string> {
     return {
       "x-api-key": apiKey,
@@ -36,7 +33,7 @@ export class AnthropicAdapter extends BaseProviderAdapter {
     url: string,
     apiKey: string | undefined,
     settings: ChatGPT_MDSettings | undefined,
-    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<any>
+    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<unknown>
   ): Promise<string[]> {
     if (!this.validateApiKey(apiKey)) {
       return [];
@@ -63,7 +60,7 @@ export class AnthropicAdapter extends BaseProviderAdapter {
           .sort();
       }
 
-      console.warn("Unexpected response format from Anthropic models API");
+      Logger.warn("Unexpected response format from Anthropic models API");
       return [];
     } catch (error) {
       this.handleFetchError(error);

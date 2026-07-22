@@ -33,7 +33,6 @@ export class ServiceContainer {
   // Utility services
   readonly notificationService: NotificationService;
   readonly errorService: ErrorService;
-  readonly apiService: ApiService;
   readonly apiAuthService: ApiAuthService;
 
   // Content services
@@ -62,7 +61,6 @@ export class ServiceContainer {
     plugin: Plugin,
     notificationService: NotificationService,
     errorService: ErrorService,
-    apiService: ApiService,
     apiAuthService: ApiAuthService,
     fileService: FileService,
     frontmatterManager: FrontmatterManager,
@@ -80,7 +78,6 @@ export class ServiceContainer {
     this.plugin = plugin;
     this.notificationService = notificationService;
     this.errorService = errorService;
-    this.apiService = apiService;
     this.apiAuthService = apiAuthService;
     this.fileService = fileService;
     this.frontmatterManager = frontmatterManager;
@@ -108,8 +105,8 @@ export class ServiceContainer {
     const composites = this.createCompositeServices(app, plugin, infrastructure, content);
     const { settingsService, editorService, templateService, agentService } = composites;
 
-    const aiProviderService = () => new AiProviderService();
-    AiProviderService.setSaveSettingsCallback(settingsService.saveSettings.bind(settingsService));
+    const aiProviderService = () =>
+      new AiProviderService(new ApiService(), infrastructure.apiAuthService, infrastructure.notificationService);
 
     const vaultSearchService = new VaultSearchService(app, content.fileService);
     const webSearchService = new WebSearchService(infrastructure.notificationService);
@@ -127,7 +124,6 @@ export class ServiceContainer {
       plugin,
       infrastructure.notificationService,
       infrastructure.errorService,
-      infrastructure.apiService,
       infrastructure.apiAuthService,
       content.fileService,
       content.frontmatterManager,
@@ -154,33 +150,25 @@ export class ServiceContainer {
     templateService: TemplateService;
     agentService: AgentService;
   } {
+    const agentService = new AgentService(app, content.fileService, content.frontmatterManager);
     const settingsService = new SettingsService(
       plugin,
       content.frontmatterManager,
-      infrastructure.notificationService,
-      infrastructure.errorService
+      agentService,
+      infrastructure.notificationService
     );
-    const editorService = new EditorService(
-      app,
-      content.fileService,
-      content.messageService,
-      undefined,
-      settingsService
-    );
-    const agentService = new AgentService(app, content.fileService, content.frontmatterManager);
-    settingsService.setAgentService(agentService);
+    const editorService = new EditorService(content.fileService, content.messageService, settingsService);
     return {
       settingsService,
       editorService,
       agentService,
-      templateService: new TemplateService(app, content.fileService, editorService),
+      templateService: new TemplateService(app, content.fileService, infrastructure.notificationService),
     };
   }
 
   private static createInfrastructureServices(): {
     notificationService: NotificationService;
     errorService: ErrorService;
-    apiService: ApiService;
     apiAuthService: ApiAuthService;
   } {
     const notificationService = new NotificationService();
@@ -188,8 +176,7 @@ export class ServiceContainer {
     return {
       notificationService,
       errorService,
-      apiService: new ApiService(errorService, notificationService),
-      apiAuthService: new ApiAuthService(notificationService),
+      apiAuthService: new ApiAuthService(),
     };
   }
 
@@ -197,7 +184,7 @@ export class ServiceContainer {
     app: App,
     notificationService: NotificationService
   ): { fileService: FileService; frontmatterManager: FrontmatterManager; messageService: MessageService } {
-    const fileService = new FileService(app);
+    const fileService = new FileService(app, notificationService);
     return {
       fileService,
       frontmatterManager: new FrontmatterManager(app),

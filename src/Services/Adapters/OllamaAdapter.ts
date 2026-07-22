@@ -1,13 +1,6 @@
 import { ChatGPT_MDSettings } from "src/Models/Config";
-import { ProviderModelData, ProviderType } from "./ProviderAdapter";
+import { ProviderType } from "./ProviderAdapter";
 import { BaseProviderAdapter } from "./BaseProviderAdapter";
-
-/**
- * Model data from Ollama API
- */
-interface OllamaModel extends ProviderModelData {
-  name: string;
-}
 
 /**
  * Adapter for Ollama (local) API provider
@@ -16,10 +9,6 @@ interface OllamaModel extends ProviderModelData {
 export class OllamaAdapter extends BaseProviderAdapter {
   readonly type: ProviderType = "ollama";
   readonly displayName = "Ollama";
-
-  getDefaultBaseUrl(): string {
-    return "http://localhost:11434";
-  }
 
   getAuthHeaders(apiKey: string | undefined): Record<string, string> {
     // Ollama doesn't require authentication
@@ -30,20 +19,16 @@ export class OllamaAdapter extends BaseProviderAdapter {
     url: string,
     apiKey: string | undefined,
     settings: ChatGPT_MDSettings | undefined,
-    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<any>
+    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<unknown>
   ): Promise<string[]> {
     try {
       const headers = this.getAuthHeaders(apiKey);
-      const json = await makeGetRequest(`${url}/api/tags`, headers, this.type);
-      const models = json.models;
+      const response = await makeGetRequest(`${url}/api/tags`, headers, this.type);
+      const modelNames = this.getObjectArray(response, "models")
+        .map((model) => model.name)
+        .filter((name): name is string => typeof name === "string");
 
-      return models
-        .sort((a: OllamaModel, b: OllamaModel) => {
-          if (a.name < b.name) return 1;
-          if (a.name > b.name) return -1;
-          return 0;
-        })
-        .map((model: OllamaModel) => this.prefixModelId(model.name));
+      return modelNames.sort((a, b) => b.localeCompare(a)).map((name) => this.prefixModelId(name));
     } catch (error) {
       this.handleLocalFetchError(error);
       return [];

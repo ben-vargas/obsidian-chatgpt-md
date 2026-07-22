@@ -1,119 +1,18 @@
-# Provider Adapters
+# Provider adapter guide
 
-Provider-specific adapters implementing the `ProviderAdapter` interface. Each adapter encapsulates provider-specific logic, allowing `AiProviderService` to work uniformly with all providers.
+Authoritative contributor rules are in `/AGENTS.md`; provider steps are in `/docs/CREATE_SERVICE.md`.
 
-## Architecture
+Adapters contain protocol differences only. Operational metadata and defaults belong in `Services/Providers/ProviderRegistry.ts`.
 
-The adapter pattern enables:
+`ProviderAdapter` currently requires:
 
-- **Consistent API** across all AI providers
-- **Easy addition** of new providers
-- **Provider-specific behavior** (auth, endpoints, model listing)
-- **Tool calling support** where available
+- `type` and `displayName`
+- `getAuthHeaders()` for model discovery
+- defensive `fetchModels()` parsing from `unknown`
+- `requiresApiKey()`
+- `extractModelName()`
+- idempotent `getApiPathSuffix()`
 
-## ProviderAdapter.ts
+Use `BaseProviderAdapter` for common prefix handling, key checks, safe model-array extraction, local-server error handling, and the standard `/v1` suffix.
 
-**Interface and type definitions** (signatures live in the file)
-
-- `ProviderType` - Union of supported provider ids: `openai | anthropic | ollama | openrouter | gemini | lmstudio | zai`
-- `AiProviderConfig` - Unified config passed to providers: `provider`, `model`, `maxTokens`, `temperature`, `stream`, `url`, `title`, `system_commands`, `tags`, plus optional `topP` / `frequencyPenalty` / `presencePenalty` / `apiKey`
-- `ProviderModelData` - Normalized model-listing entry returned by `fetchModels()`
-
-### ProviderAdapter Interface
-
-Contract each adapter must implement:
-
-- `type` - Provider identifier
-- `displayName` - Human-readable name
-- `getDefaultBaseUrl()` - Default API endpoint
-- `getAuthHeaders(apiKey)` - Authentication headers
-- `fetchModels(url, apiKey, settings, makeGetRequest)` - Model listing
-- `supportsToolCalling()` - Tool calling support
-- `requiresApiKey()` - Local providers (Ollama, LM Studio): false
-- `extractModelName(modelId)` - Strip provider prefix
-- `getApiPathSuffix(url?)` - API path suffix for chat completions
-
-## BaseProviderAdapter.ts
-
-**Abstract base class with common functionality**
-
-Default implementations:
-
-- `supportsToolCalling()` → true
-- `requiresApiKey()` → true
-- `extractModelName()` - Remove provider prefix
-- `validateApiKey()` - Check key presence
-- `handleFetchError()` - Consistent error logging
-- `getApiPathSuffix()` → "/v1" (default for most OpenAI-compatible providers)
-
-## Adapter Implementations
-
-### OpenAIAdapter.ts
-
-- Default URL: `https://api.openai.com`
-- System/developer content is passed through AI SDK 7's top-level `instructions` option
-- Auth: `Authorization: Bearer {key}`
-- Uses Vercel AI SDK `createOpenAI()`
-- `getApiPathSuffix()` → "/v1"
-- OpenAI `*-search-preview` model IDs are listed by `/v1/models` but must be called through `provider.chat(modelName)` in `AiProviderService.createLanguageModel()` so they hit `/v1/chat/completions` instead of `/v1/responses`
-
-### AnthropicAdapter.ts
-
-- Default URL: `https://api.anthropic.com`
-- AI SDK translates top-level `instructions` to Anthropic's dedicated system field
-- Auth: `x-api-key: {key}`, `anthropic-version: 2023-06-01`
-- Uses Vercel AI SDK `createAnthropic()`
-
-### GeminiAdapter.ts
-
-- Default URL: `https://generativelanguage.googleapis.com`
-- Auth: API key in URL query parameter (`?key={apiKey}`)
-- Uses Vercel AI SDK `createGoogle()`
-
-### OllamaAdapter.ts
-
-- Default URL: `http://localhost:11434`
-- `requiresApiKey()` → false
-- Fetches models from `/api/tags`
-- Uses Vercel AI SDK `createOpenAICompatible()`
-- `getApiPathSuffix()` → "/v1" (for `/v1/chat/completions`)
-
-### LmStudioAdapter.ts
-
-- Default URL: `http://localhost:1234`
-- `requiresApiKey()` → false
-- OpenAI-compatible API
-- Uses Vercel AI SDK `createOpenAICompatible()`
-- `getApiPathSuffix()` → "/v1"
-
-### OpenRouterAdapter.ts
-
-- Default URL: `https://openrouter.ai`
-- `getApiPathSuffix()` → "/api/v1" (OpenRouter's unique structure)
-- Auth: `Authorization: Bearer {key}`
-- Prefixes models with `openrouter@`
-- Final endpoints: `/api/v1/chat/completions`, `/api/v1/models`
-- Uses Vercel AI SDK `createOpenRouter()`
-
-### ZaiAdapter.ts
-
-- Default URL: `https://api.z.ai`
-- Uses `createOpenAICompatible` from AI SDK
-- `getApiPathSuffix(url)` → `/api/paas/v4` (Standard mode) or `/api/anthropic/v1` (Coding Plan mode)
-- Supports two API modes based on URL path:
-  - Standard API: Uses `/api/paas/v4` path
-  - Coding Plan (Anthropic-compatible): Uses `/api/anthropic/v1` path
-- Auth: `Authorization: Bearer {key}`
-- No models endpoint - returns known models directly:
-  - GLM-4.5, GLM-4.6, GLM-4.6V, GLM-4.6V-Flash, GLM-4.6V-FlashX, GLM-4.7, GLM-4.7-Flash
-- Prefixes models with `zai@`
-
-## Adding a New Provider
-
-1. Create new adapter extending `BaseProviderAdapter`
-2. Override provider-specific methods (URL, auth headers, model fetching)
-3. Add provider constants/types in `Constants.ts` as needed
-4. Add default configuration to `DefaultConfigs.ts`
-5. Add URL/API-key/default settings to `Config.ts`
-6. Register adapter, AI SDK factory, settings keys, and frontmatter defaults in `src/Services/Providers/ProviderRegistry.ts`
-7. Update settings schema/UI, docs, and tests
+Do not add provider maps to commands/utilities, log credentials, or assume external model responses are valid. Add routing, URL, malformed-response, and registry-completeness tests with every provider change.

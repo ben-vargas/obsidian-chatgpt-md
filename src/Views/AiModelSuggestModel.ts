@@ -2,6 +2,7 @@ import { App, Editor, Notice, SuggestModal } from "obsidian";
 import { EditorService } from "../Services/EditorService";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { isModelWhitelisted } from "src/Services/ToolSupportDetector";
+import { Logger } from "src/Utilities/Logger";
 
 export class AiModelSuggestModal extends SuggestModal<string> {
   private modelNames: string[];
@@ -51,7 +52,11 @@ export class AiModelSuggestModal extends SuggestModal<string> {
     }
   }
 
-  async onChooseSuggestion(modelName: string, evt: MouseEvent | KeyboardEvent) {
+  onChooseSuggestion(modelName: string, _evt: MouseEvent | KeyboardEvent): void {
+    void this.applyModel(modelName);
+  }
+
+  private async applyModel(modelName: string): Promise<void> {
     if (this.modelNames.indexOf(modelName) === -1 || this.modelNames.length === 0) {
       return;
     }
@@ -60,8 +65,8 @@ export class AiModelSuggestModal extends SuggestModal<string> {
     try {
       await this.editorService.setModel(this.editor, modelName);
     } catch (error) {
-      console.error("[ChatGPT MD] Error setting model in frontmatter:", error);
-      new Notice(`Error setting model: ${error.message}`);
+      Logger.error("[ChatGPT MD] Error setting model in frontmatter", { error });
+      new Notice(`Error setting model: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

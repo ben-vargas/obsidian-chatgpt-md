@@ -24,6 +24,8 @@ describe.each([
     const makeGetRequest = jest.fn<() => Promise<never>>().mockRejectedValue(error);
 
     await expect(adapter.fetchModels(url, undefined, undefined, makeGetRequest)).resolves.toEqual([]);
-    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("Error fetching"), error);
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("Error fetching"), {
+      error: { name: "Error", message: "Invalid model response" },
+    });
   });
 });

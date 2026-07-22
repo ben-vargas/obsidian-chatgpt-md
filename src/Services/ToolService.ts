@@ -1,22 +1,30 @@
 import { App, TFile } from "obsidian";
+import { Logger } from "src/Utilities/Logger";
 
 import { FileService } from "./FileService";
 import { NotificationService } from "./NotificationService";
 import { VaultSearchService } from "./VaultSearchService";
 import { WebSearchService } from "./WebSearchService";
 import { ChatGPT_MDSettings } from "src/Models/Config";
-import { SearchResultsApprovalModal } from "src/Views/SearchResultsApprovalModal";
-import { WebSearchApprovalModal } from "src/Views/WebSearchApprovalModal";
-import { ToolApprovalModal } from "src/Views/ToolApprovalModal";
 import {
+  AiToolCall,
   RegisteredTool,
   ToolApprovalDecision,
+  ToolExecutionResult,
   ToolApprovalRequest,
   ToolResultHandler,
   VaultSearchResult,
   WebSearchResult,
 } from "src/Models/Tool";
 import { createDefaultTools } from "./Tools/defaultTools";
+import { ToolApprovalCoordinator, ToolApprovalGateway } from "./Tools/ToolApprovalCoordinator";
+import {
+  fileReadContext,
+  noVaultResultsContext,
+  noWebResultsContext,
+  vaultFileContext,
+  webResultContext,
+} from "./Tools/ToolResultFormatter";
 
 /**
  * Unified Tool Service
@@ -27,11 +35,11 @@ import { createDefaultTools } from "./Tools/defaultTools";
  * - Tool orchestration and approval
  */
 export class ToolService {
-  private approvalHandler?: (toolName: string, args: Record<string, unknown>) => Promise<unknown>;
   private readonly toolResultHandlers: Record<string, ToolResultHandler>;
   private readonly tools: Map<string, RegisteredTool> = new Map();
   private readonly vaultSearchService: VaultSearchService;
   private readonly webSearchService: WebSearchService;
+  private readonly approvalGateway: ToolApprovalGateway;
 
   constructor(
     private app: App,
@@ -39,7 +47,8 @@ export class ToolService {
     private notificationService: NotificationService,
     private settingsService: ChatGPT_MDSettings,
     vaultSearchService?: VaultSearchService,
-    webSearchService?: WebSearchService
+    webSearchService?: WebSearchService,
+    approvalGateway?: ToolApprovalGateway
   ) {
     this.toolResultHandlers = {
       vault_search: this.handleVaultSearchResult.bind(this),
@@ -49,6 +58,7 @@ export class ToolService {
 
     this.vaultSearchService = vaultSearchService || new VaultSearchService(app, fileService);
     this.webSearchService = webSearchService || new WebSearchService(notificationService);
+    this.approvalGateway = approvalGateway || new ToolApprovalCoordinator(app);
 
     // Register default tools
     this.registerDefaultTools();
@@ -71,7 +81,7 @@ export class ToolService {
   /**
    * Register a new tool
    */
-  registerTool(name: string, toolDef: any): void {
+  registerTool(name: string, toolDef: RegisteredTool): void {
     this.tools.set(name, toolDef);
   }
 
@@ -96,15 +106,15 @@ export class ToolService {
   /**
    * Get a specific tool by name
    */
-  getTool(name: string): any | undefined {
+  getTool(name: string): RegisteredTool | undefined {
     return this.tools.get(name);
   }
 
   /**
    * Get all registered tools
    */
-  getAllTools(): Record<string, any> {
-    const toolsObject: Record<string, any> = {};
+  getAllTools(): Record<string, RegisteredTool> {
+    const toolsObject: Record<string, RegisteredTool> = {};
     this.tools.forEach((toolDef, name) => {
       toolsObject[name] = toolDef;
     });
@@ -120,13 +130,13 @@ export class ToolService {
    * @param settings - Plugin settings containing tool and web search configuration
    * @returns Object containing enabled tools, or undefined if no tools available
    */
-  getEnabledTools(settings: ChatGPT_MDSettings): Record<string, any> | undefined {
+  getEnabledTools(settings: ChatGPT_MDSettings): Record<string, Omit<RegisteredTool, "execute">> | undefined {
     if (!settings.enableToolCalling) {
       return undefined;
     }
 
     const allTools = this.getAllTools();
-    const enabledTools: Record<string, any> = {};
+    const enabledTools: Record<string, Omit<RegisteredTool, "execute">> = {};
 
     // Only expose tool declarations to AI SDK. Registered executors stay in
     // this service and run after the plugin's explicit approval flow. Passing
@@ -161,10 +171,7 @@ export class ToolService {
    * Merged from ToolExecutor
    */
   private async requestApproval(request: ToolApprovalRequest): Promise<ToolApprovalDecision> {
-    const modal = new ToolApprovalModal(this.app, request.toolName, request.args, request.modelName);
-    modal.open();
-
-    const decision = await modal.waitForResult();
+    const decision = await this.approvalGateway.approveTool(request);
 
     if (!decision.approved) {
       this.notificationService.showWarning(`Tool execution cancelled: ${request.toolName}`);
@@ -174,16 +181,9 @@ export class ToolService {
   }
 
   /**
-   * Set the approval handler for tool calls
-   */
-  setApprovalHandler(handler: (toolName: string, args: any) => Promise<any>): void {
-    this.approvalHandler = handler;
-  }
-
-  /**
    * Get tools to pass to AI SDK based on settings
    */
-  getToolsForRequest(settings: ChatGPT_MDSettings): Record<string, any> | undefined {
+  getToolsForRequest(settings: ChatGPT_MDSettings): Record<string, Omit<RegisteredTool, "execute">> | undefined {
     return this.getEnabledTools(settings);
   }
 
@@ -195,10 +195,7 @@ export class ToolService {
     results: VaultSearchResult[],
     modelName?: string
   ): Promise<VaultSearchResult[]> {
-    const modal = new SearchResultsApprovalModal(this.app, query, results, modelName);
-    modal.open();
-
-    const decision = await modal.waitForResult();
+    const decision = await this.approvalGateway.approveVaultResults(query, results, modelName);
 
     if (!decision.approved) {
       return [];
@@ -214,10 +211,7 @@ export class ToolService {
     results: WebSearchResult[],
     modelName?: string
   ): Promise<WebSearchResult[]> {
-    const modal = new WebSearchApprovalModal(this.app, query, results, modelName);
-    modal.open();
-
-    const decision = await modal.waitForResult();
+    const decision = await this.approvalGateway.approveWebResults(query, results, modelName);
 
     if (!decision.approved) {
       return [];
@@ -253,7 +247,7 @@ export class ToolService {
           });
         }
       } catch (error) {
-        console.error(`[ChatGPT MD] Error reading file ${searchResult.path}:`, error);
+        Logger.error(`[ChatGPT MD] Error reading file ${searchResult.path}`, { error });
       }
     }
     return fileContents;
@@ -263,9 +257,9 @@ export class ToolService {
    * Handle vault_search tool results
    */
   private async handleVaultSearchResult(
-    toolResult: any,
-    toolCall: any,
-    filteredResults: any[],
+    toolResult: ToolExecutionResult,
+    toolCall: AiToolCall,
+    filteredResults: ToolExecutionResult[],
     contextMessages: Array<{ role: "user"; content: string }>,
     modelName?: string
   ): Promise<void> {
@@ -276,7 +270,7 @@ export class ToolService {
       return;
     }
 
-    const query = (toolCall?.input as any)?.query || "unknown";
+    const query = typeof toolCall.args.query === "string" ? toolCall.args.query : "unknown";
 
     if (result.length > 0) {
       const approvedResults = await this.requestSearchResultsApproval(query, result, modelName);
@@ -286,24 +280,15 @@ export class ToolService {
         // Read file contents for approved results
         const fileContents = await this.readFilesFromSearchResults(approvedResults);
         for (const fc of fileContents) {
-          contextMessages.push({
-            role: "user",
-            content: `[vault_search result]\n\nFile: ${fc.path}\n\n${fc.content}`,
-          });
+          contextMessages.push(vaultFileContext(fc.path, fc.content));
         }
       } else {
-        contextMessages.push({
-          role: "user",
-          content: `[vault_search result - no files found]\n\nThe search for "${query}" returned no results. Try searching with different keywords or single words.`,
-        });
+        contextMessages.push(noVaultResultsContext(query));
       }
     } else {
       // Empty results
       filteredResults.push(toolResult);
-      contextMessages.push({
-        role: "user",
-        content: `[vault_search result - no files found]\n\nThe search for "${query}" returned no results. Try searching with different keywords or single words.`,
-      });
+      contextMessages.push(noVaultResultsContext(query));
     }
   }
 
@@ -311,9 +296,9 @@ export class ToolService {
    * Handle file_read tool results
    */
   private async handleFileReadResult(
-    toolResult: any,
-    toolCall: any,
-    filteredResults: any[],
+    toolResult: ToolExecutionResult,
+    toolCall: AiToolCall,
+    filteredResults: ToolExecutionResult[],
     contextMessages: Array<{ role: "user"; content: string }>,
     modelName?: string
   ): Promise<void> {
@@ -326,10 +311,7 @@ export class ToolService {
     filteredResults.push(toolResult);
     for (const fileResult of result) {
       if (fileResult.content && typeof fileResult.content === "string") {
-        contextMessages.push({
-          role: "user",
-          content: `[file_read result]\n\nFile: ${fileResult.path}\n\n${fileResult.content}`,
-        });
+        contextMessages.push(fileReadContext(String(fileResult.path || "unknown"), fileResult.content));
       }
     }
   }
@@ -338,9 +320,9 @@ export class ToolService {
    * Handle web_search tool results
    */
   private async handleWebSearchResult(
-    toolResult: any,
-    toolCall: any,
-    filteredResults: any[],
+    toolResult: ToolExecutionResult,
+    toolCall: AiToolCall,
+    filteredResults: ToolExecutionResult[],
     contextMessages: Array<{ role: "user"; content: string }>,
     modelName?: string
   ): Promise<void> {
@@ -351,7 +333,7 @@ export class ToolService {
       return;
     }
 
-    const query = (toolCall?.input as any)?.query || "unknown";
+    const query = typeof toolCall.args.query === "string" ? toolCall.args.query : "unknown";
 
     if (result.length > 0) {
       const approvedResults = await this.requestWebSearchResultsApproval(query, result, modelName);
@@ -360,24 +342,15 @@ export class ToolService {
       if (approvedResults.length > 0) {
         // Format approved results as context messages
         for (const webResult of approvedResults) {
-          contextMessages.push({
-            role: "user",
-            content: `[web_search result]\n\nTitle: ${webResult.title}\nURL: ${webResult.url}\n\n${webResult.content || webResult.snippet}`,
-          });
+          contextMessages.push(webResultContext(webResult));
         }
       } else {
-        contextMessages.push({
-          role: "user",
-          content: `[web_search result - no results selected]\n\nThe web search for "${query}" returned results, but none were approved for sharing.`,
-        });
+        contextMessages.push(noWebResultsContext(query, true));
       }
     } else {
       // Empty results
       filteredResults.push(toolResult);
-      contextMessages.push({
-        role: "user",
-        content: `[web_search result - no results found]\n\nThe web search for "${query}" returned no results. Try different search terms.`,
-      });
+      contextMessages.push(noWebResultsContext(query, false));
     }
   }
 
@@ -385,24 +358,27 @@ export class ToolService {
    * Process tool call results: filter, approve, and convert to context messages
    */
   async processToolResults(
-    toolCalls: any[],
-    toolResults: any[],
+    toolCalls: unknown[],
+    toolResults: ToolExecutionResult[],
     modelName?: string
   ): Promise<{
-    filteredResults: any[];
+    filteredResults: ToolExecutionResult[];
     contextMessages: Array<{ role: "user"; content: string }>;
   }> {
     const contextMessages: Array<{ role: "user"; content: string }> = [];
-    const filteredResults: any[] = [];
+    const filteredResults: ToolExecutionResult[] = [];
+    const normalizedCalls = toolCalls
+      .map((toolCall) => this.normalizeToolCall(toolCall))
+      .filter(Boolean) as AiToolCall[];
 
     for (const toolResult of toolResults) {
-      const toolCall = toolCalls.find((tc: any) => {
-        const tcId = tc.toolCallId || tc.id || "unknown";
-        return tcId === toolResult.toolCallId;
-      });
+      const toolCall = normalizedCalls.find((call) => call.toolCallId === toolResult.toolCallId);
+      if (!toolCall) {
+        filteredResults.push(toolResult);
+        continue;
+      }
 
-      const toolName = toolCall?.toolName;
-      const handler = this.toolResultHandlers[toolName];
+      const handler = this.toolResultHandlers[toolCall.toolName];
 
       if (handler) {
         await handler(toolResult, toolCall, filteredResults, contextMessages, modelName);
@@ -418,20 +394,35 @@ export class ToolService {
   /**
    * Handle tool calls by requesting user approval and executing if approved
    */
-  async handleToolCalls(toolCalls: any[], modelName?: string): Promise<any[]> {
-    return Promise.all(toolCalls.map((tc) => this.executeToolCall(tc, modelName)));
+  async handleToolCalls(toolCalls: unknown[], modelName?: string): Promise<ToolExecutionResult[]> {
+    const results: ToolExecutionResult[] = [];
+    for (const toolCall of toolCalls) {
+      results.push(await this.executeToolCall(toolCall, modelName));
+    }
+    return results;
   }
 
   /**
    * Execute a single tool call with approval
    */
-  private async executeToolCall(toolCall: any, modelName?: string): Promise<any> {
-    const { toolName, args, toolCallId } = this.normalizeToolCall(toolCall);
+  private async executeToolCall(toolCall: unknown, modelName?: string): Promise<ToolExecutionResult> {
+    const normalizedCall = this.normalizeToolCall(toolCall);
+    if (!normalizedCall) {
+      return { toolCallId: "unknown", result: { error: "Invalid tool call" } };
+    }
 
+    const { toolName, args, toolCallId } = normalizedCall;
+    const tool = this.getTool(toolName);
+    const parsedArgs = tool?.inputSchema.safeParse(args);
+    if (!tool || !parsedArgs?.success) {
+      return { toolCallId, result: { error: "Tool not found or invalid arguments" } };
+    }
+
+    const validatedArgs = parsedArgs.data as Record<string, unknown>;
     const approval = await this.requestApproval({
       toolCallId,
       toolName,
-      args,
+      args: validatedArgs,
       modelName,
     });
 
@@ -442,38 +433,46 @@ export class ToolService {
       };
     }
 
-    return this.executeTool(toolName, approval.modifiedArgs || args, toolCallId);
+    return this.executeTool(toolName, approval.modifiedArgs || validatedArgs, toolCallId);
   }
 
   /**
    * Normalize different tool call structures
    */
-  private normalizeToolCall(toolCall: any): {
-    toolName: string;
-    args: Record<string, unknown>;
-    toolCallId: string;
-  } {
+  private normalizeToolCall(toolCall: unknown): AiToolCall | null {
+    if (!toolCall || typeof toolCall !== "object") return null;
+
+    const raw = toolCall as Record<string, unknown>;
+    const toolName = [raw.toolName, raw.name, raw.tool].find(
+      (value): value is string => typeof value === "string" && value.trim().length > 0
+    );
+    const rawArgs = raw.args ?? raw.input ?? raw.arguments ?? {};
+    const args = rawArgs && typeof rawArgs === "object" && !Array.isArray(rawArgs) ? rawArgs : null;
+    const rawCallId = raw.toolCallId ?? raw.id;
+
+    if (!toolName || !args) return null;
     return {
-      toolName: toolCall.toolName || toolCall.name || toolCall.tool,
-      args: toolCall.args || toolCall.input || toolCall.arguments || {},
-      toolCallId: toolCall.toolCallId || toolCall.id || "unknown",
+      toolName,
+      args: args as Record<string, unknown>,
+      toolCallId: typeof rawCallId === "string" && rawCallId ? rawCallId : "unknown",
     };
   }
 
   /**
    * Execute tool and return result
    */
-  private async executeTool(toolName: string, args: Record<string, unknown>, toolCallId: string): Promise<any> {
+  private async executeTool(
+    toolName: string,
+    args: Record<string, unknown>,
+    toolCallId: string
+  ): Promise<ToolExecutionResult> {
     try {
       const tool = this.getTool(toolName);
-      if (!tool || !tool.execute) {
-        return {
-          toolCallId,
-          result: { error: "Tool not found or has no execute function" },
-        };
-      }
+      if (!tool) return { toolCallId, result: { error: "Tool not found" } };
+      const parsedArgs = tool.inputSchema.safeParse(args);
+      if (!parsedArgs.success) return { toolCallId, result: { error: "Invalid tool arguments" } };
 
-      const result = await tool.execute(args, {
+      const result = await tool.execute(parsedArgs.data as Record<string, unknown>, {
         app: this.app,
         toolCallId,
         messages: [],

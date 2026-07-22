@@ -3,11 +3,11 @@
  * Eliminates duplication between ToolSupportDetector and FrontmatterHelpers
  */
 
-import { ProviderType } from "src/Services/Adapters/ProviderAdapter";
+import { AiServiceType } from "src/Constants";
 
-export interface ModelInfo {
+interface ModelInfo {
   fullId: string; // "openai@gpt-4"
-  provider: ProviderType; // "openai"
+  provider: AiServiceType; // "openai"
   modelId: string; // "gpt-4"
 }
 
@@ -21,13 +21,13 @@ export interface ModelInfo {
  * parseModelId("openai@gpt-4") // { fullId: "openai@gpt-4", provider: "openai", modelId: "gpt-4" }
  * parseModelId("gpt-4")        // { fullId: "openai@gpt-4", provider: "openai", modelId: "gpt-4" }
  */
-export function parseModelId(fullId: string): ModelInfo {
+function parseModelId(fullId: string): ModelInfo {
   const parts = fullId.split("@");
 
   if (parts.length === 2) {
     return {
       fullId,
-      provider: parts[0] as ProviderType,
+      provider: parts[0] as AiServiceType,
       modelId: parts[1],
     };
   }
@@ -38,30 +38,6 @@ export function parseModelId(fullId: string): ModelInfo {
     provider: "openai",
     modelId: fullId,
   };
-}
-
-/**
- * Check if model ID matches a pattern (string or regex)
- *
- * @param modelId - Model ID to check
- * @param pattern - String pattern (uses includes) or RegExp
- * @returns True if matches
- */
-export function modelMatches(modelId: string, pattern: string | RegExp): boolean {
-  if (typeof pattern === "string") {
-    return modelId.includes(pattern);
-  }
-  return pattern.test(modelId);
-}
-
-/**
- * Extract provider from model ID
- *
- * @param modelId - Full model ID
- * @returns Provider type
- */
-export function extractProvider(modelId: string): ProviderType {
-  return parseModelId(modelId).provider;
 }
 
 /**

@@ -14,24 +14,24 @@ Tools are capabilities that allow AI models to interact with your vault and the 
 - **File Reading**: Read specific file contents (you select what to share)
 - **Web Search**: Search the web via Brave Search API
 
-**Privacy Guarantee**: All tool calls require your explicit approval at three layers:
+**Privacy guarantee**: Tool data is protected at two approval stages:
 
-1. Approve the tool execution request
-2. Review the results before sharing with AI
-3. Select exactly what data to share
+1. Approve or edit the requested tool arguments before execution.
+2. For vault and web searches, select the returned results before any content is shared with the AI.
 
 See [v3.0.0 Release Notes](https://github.com/obsidian-chatgpt-md/obsidian-chatgpt-md) for details.
 
 ## Whitelist Coverage
 
-The default whitelist includes **161 patterns** covering models from live API testing:
+The default whitelist includes **175 patterns** covering models from live API testing:
 
 | Provider   | Patterns | Models Tested | Tool Support    |
 | ---------- | -------- | ------------- | --------------- |
 | OpenAI     | 36       | 119           | 56 models       |
 | Anthropic  | 9        | 9             | 9 models (100%) |
 | Gemini     | 7        | 29            | 7 models        |
-| OpenRouter | 109      | 346           | 122 models      |
+| OpenRouter | 120      | 346           | 122 models      |
+| Z.AI       | 3        | —             | Curated         |
 
 **Test Date**: 2026-02-01
 **Total Tested**: 503 models
@@ -94,7 +94,6 @@ Lines starting with `#` are ignored.
 1. Open **Settings → ChatGPT MD → Tool Calling**
 2. Find **Tool-Enabled Models** textarea
 3. Add/remove patterns (one per line)
-4. Click **Reset to Recommended** to restore default whitelist
 
 ### Via Note Frontmatter
 
@@ -102,13 +101,12 @@ Override the default whitelist per note:
 
 ```yaml
 ---
-chatgpt-md:
-  model: openai@gpt-4o
-  enableToolCalling: true
-  toolEnabledModels: |
-    gpt-4o
-    claude-3-5-sonnet
-    deepseek-chat
+model: openai@gpt-4o
+enableToolCalling: true
+toolEnabledModels: |
+  gpt-4o
+  claude-3-5-sonnet
+  deepseek-chat
 ---
 ```
 
@@ -191,7 +189,7 @@ toolEnabledModels: |
 
 ### OpenRouter
 
-**Tool Support**: 109 confirmed patterns including:
+**Tool Support**: 120 patterns derived from confirmed models, including:
 
 - DeepSeek (V3, R1 series)
 - Qwen (2.5, 3 series)
@@ -215,19 +213,6 @@ toolEnabledModels: |
 ```
 
 ## Validation and Troubleshooting
-
-### Check Your Models
-
-Use the **WhitelistValidator** to see which of your configured models support tools:
-
-```typescript
-import { validateWhitelist } from "src/Services/WhitelistValidator";
-
-const result = validateWhitelist(["gpt-4o", "claude-3-haiku", "unknown-model"], whitelist);
-
-console.log(result.matchRate); // Percentage supporting tools
-console.log(result.unmatchedModelDetails); // Models not on whitelist
-```
 
 ### Common Issues
 

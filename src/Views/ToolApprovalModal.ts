@@ -7,12 +7,12 @@ import { BaseApprovalModal } from "./BaseApprovalModal";
  */
 export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
   private toolName: string;
-  private args: Record<string, any>;
+  private args: Record<string, unknown>;
   private editedQuery: string | null = null;
   private queryTextarea: HTMLTextAreaElement | null = null;
   private approveBtn: HTMLButtonElement | null = null;
 
-  constructor(app: App, toolName: string, args: Record<string, any>, modelName: string = "AI") {
+  constructor(app: App, toolName: string, args: Record<string, unknown>, modelName: string = "AI") {
     super(app, modelName);
     this.toolName = toolName;
     this.args = args;
@@ -196,7 +196,7 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
   /**
    * Get modified arguments based on user selections
    */
-  private getModifiedArgs(): Record<string, any> {
+  private getModifiedArgs(): Record<string, unknown> {
     // Default to empty object if args undefined
     const baseArgs = this.args || {};
 
@@ -227,76 +227,40 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
    * Render the request description with query in list format for search tools
    */
   private renderRequestDescription(container: HTMLElement): void {
-    const query = (this.args?.query as string) || "";
-    const files = this.args?.filePaths as string[] | undefined;
+    const query = typeof this.args.query === "string" ? this.args.query : "";
+    const files = Array.isArray(this.args.filePaths) ? this.args.filePaths : [];
+    const intro = container.createEl("p", { cls: "chatgpt-md-tool-request-intro" });
+    intro.appendChild(document.createTextNode(`'${this.modelName}'${this.getRequestAction(files.length)}`));
 
-    // Intro text with model name in single quotes
-    const introEl = container.createEl("p");
-    introEl.style.marginBottom = "8px";
-    introEl.style.lineHeight = "1.5";
-    introEl.style.fontSize = "0.95em";
-
-    // Add model name in single quotes
-    introEl.appendChild(document.createTextNode(`'${this.modelName}'`));
-
-    // Add the action text based on tool type
-    switch (this.toolName) {
-      case "vault_search":
-        introEl.appendChild(document.createTextNode(" requests to search your vault for:"));
-        break;
-      case "file_read":
-        introEl.appendChild(
-          document.createTextNode(` requests to read ${files?.length || 0} file${files?.length !== 1 ? "s" : ""}:`)
-        );
-        break;
-      case "web_search":
-        introEl.appendChild(document.createTextNode(" requests to search the web for:"));
-        break;
-      default:
-        introEl.appendChild(document.createTextNode(" requests to use a tool."));
-    }
-
-    // List for search queries
     if ((this.toolName === "vault_search" || this.toolName === "web_search") && query) {
-      // Label for textarea
-      const label = container.createEl("label", { text: "Search query:" });
-      label.style.display = "block";
-      label.style.marginBottom = "8px";
-      label.style.fontWeight = "500";
-      label.style.opacity = "0.7";
-
-      // Editable textarea for query
-      this.queryTextarea = container.createEl("textarea");
-      this.queryTextarea.value = query;
-      this.queryTextarea.style.width = "100%";
-      this.queryTextarea.style.minHeight = "80px";
-      this.queryTextarea.style.padding = "8px";
-      this.queryTextarea.style.borderRadius = "4px";
-      this.queryTextarea.style.border = "1px solid var(--background-modifier-border)";
-      this.queryTextarea.style.backgroundColor = "var(--background-secondary)";
-      this.queryTextarea.style.color = "var(--text-normal)";
-      this.queryTextarea.style.fontSize = "0.95em";
-      this.queryTextarea.style.fontFamily = "var(--font-interface)";
-      this.queryTextarea.style.resize = "vertical";
-      this.queryTextarea.style.marginBottom = "16px";
-
-      // Track query changes
-      this.queryTextarea.addEventListener("input", () => {
-        this.editedQuery = this.queryTextarea!.value.trim();
-        this.validateApproveButton();
-      });
-    } else if (this.toolName === "file_read") {
-      // For file_read, still just one line since files are shown in selection below
-      const noteEl = container.createEl("p", {
-        text: "You can select which files to share on the next screen.",
-      });
-      noteEl.style.marginBottom = "16px";
-      noteEl.style.opacity = "0.7";
-      noteEl.style.fontSize = "0.9em";
-    } else {
-      const noteEl = container.createEl("p", { text: "" });
-      noteEl.style.marginBottom = "16px";
+      this.renderQueryEditor(container, query);
+      return;
     }
+
+    const note = this.toolName === "file_read" ? "You can select which files to share on the next screen." : "";
+    container.createEl("p", { text: note, cls: "chatgpt-md-tool-request-note" });
+  }
+
+  private getRequestAction(fileCount: number): string {
+    if (this.toolName === "vault_search") return " requests to search your vault for:";
+    if (this.toolName === "web_search") return " requests to search the web for:";
+    if (this.toolName === "file_read") {
+      return ` requests to read ${fileCount} file${fileCount === 1 ? "" : "s"}:`;
+    }
+    return " requests to use a tool.";
+  }
+
+  private renderQueryEditor(container: HTMLElement, query: string): void {
+    container.createEl("label", {
+      text: "Search query:",
+      cls: "chatgpt-md-tool-query-label",
+    });
+    this.queryTextarea = container.createEl("textarea", { cls: "chatgpt-md-tool-query" });
+    this.queryTextarea.value = query;
+    this.queryTextarea.addEventListener("input", () => {
+      this.editedQuery = this.queryTextarea?.value.trim() || "";
+      this.validateApproveButton();
+    });
   }
 
   protected refreshSelectionItems(): void {

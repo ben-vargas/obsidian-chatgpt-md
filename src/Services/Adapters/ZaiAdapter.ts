@@ -36,10 +36,6 @@ export class ZaiAdapter extends BaseProviderAdapter {
     "glm-4.7-flash",
   ];
 
-  getDefaultBaseUrl(): string {
-    return "https://api.z.ai";
-  }
-
   /**
    * Check if the URL points to the Anthropic-compatible Coding Plan endpoint
    * Detection based on URL path containing "anthropic"
@@ -48,31 +44,11 @@ export class ZaiAdapter extends BaseProviderAdapter {
     return url.includes("/api/anthropic");
   }
 
-  /**
-   * Get auth headers based on the API mode
-   */
   getAuthHeaders(apiKey: string): Record<string, string> {
-    // Default to OpenAI-compatible headers
-    // For Anthropic mode, use getAuthHeadersForUrl
     return {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     };
-  }
-
-  /**
-   * Get auth headers based on URL (detects API mode)
-   */
-  getAuthHeadersForUrl(apiKey: string, url: string): Record<string, string> {
-    if (this.isAnthropicMode(url)) {
-      return {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-        "Content-Type": "application/json",
-      };
-    }
-    return this.getAuthHeaders(apiKey);
   }
 
   /**
@@ -81,21 +57,20 @@ export class ZaiAdapter extends BaseProviderAdapter {
    * For Coding Plan (Anthropic-compatible): return the Anthropic path
    */
   override getApiPathSuffix(url?: string): string {
-    // If URL is provided, detect mode from it
-    if (url) {
-      if (this.isAnthropicMode(url)) {
-        return "/api/anthropic/v1";
-      }
+    const normalizedUrl = url?.replace(/\/+$/, "") || "";
+
+    if (this.isAnthropicMode(normalizedUrl)) {
+      return normalizedUrl.endsWith("/api/anthropic/v1") ? "" : "/v1";
     }
-    // Default to Standard API mode - return full path for Z.AI international API
-    return "/api/paas/v4";
+
+    return normalizedUrl.endsWith("/api/paas/v4") ? "" : "/api/paas/v4";
   }
 
   async fetchModels(
     _url: string,
     apiKey: string | undefined,
     _settings: ChatGPT_MDSettings | undefined,
-    _makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<any>
+    _makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<unknown>
   ): Promise<string[]> {
     if (!this.validateApiKey(apiKey)) {
       return [];
@@ -104,10 +79,6 @@ export class ZaiAdapter extends BaseProviderAdapter {
     // Z.AI does not have a models endpoint
     // Return known models directly
     return this.KNOWN_MODELS.map((model) => this.prefixModelId(model)).sort();
-  }
-
-  supportsToolCalling(): boolean {
-    return true; // Both Z.AI API modes support tool calling
   }
 
   requiresApiKey(): boolean {

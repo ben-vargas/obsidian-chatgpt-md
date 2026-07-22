@@ -5,12 +5,13 @@ import { IAiApiService } from "src/Types/AiTypes";
 import { FETCH_MODELS_TIMEOUT_MS } from "src/Constants";
 import { getApiUrlsFromFrontmatter } from "src/Utilities/FrontmatterHelpers";
 import { getProviderDefinitions, getProviderUrl } from "src/Services/Providers/ProviderRegistry";
+import { Logger } from "src/Utilities/Logger";
 
 /**
  * Get the API URLs for all AI services based on frontmatter
  * Delegates to FrontmatterHelpers utility
  */
-export function getAiApiUrls(frontmatter: any): { [key: string]: string } {
+export function getAiApiUrls(frontmatter: Record<string, unknown>): Record<string, string> {
   return getApiUrlsFromFrontmatter(frontmatter);
 }
 
@@ -29,13 +30,23 @@ export function getDefaultApiUrls(settings: ChatGPT_MDSettings): { [key: string]
 export async function fetchAvailableModels(
   aiService: IAiApiService,
   urls: { [key: string]: string },
-  apiKey: string,
-  openrouterApiKey: string,
   apiAuthService: { getApiKey(settings: ChatGPT_MDSettings, serviceType: string): string },
   settingsService: { getSettings(): ChatGPT_MDSettings }
 ): Promise<string[]> {
   function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-    return Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(fallback), ms);
+      promise.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        () => {
+          clearTimeout(timer);
+          resolve(fallback);
+        }
+      );
+    });
   }
 
   try {
@@ -60,7 +71,7 @@ export async function fetchAvailableModels(
   } catch (error) {
     // Handle potential errors during fetch or Promise.all
     new Notice("Error fetching models: " + (error instanceof Error ? error.message : String(error)));
-    console.error("Error fetching models:", error);
+    Logger.error("Error fetching models", { error });
     // Depending on desired behavior, you might return [] or rethrow
     return []; // Return empty array on error to avoid breaking the modal
   }

@@ -1,6 +1,5 @@
 import { App } from "obsidian";
 import { z } from "zod";
-import { tool, zodSchema } from "ai";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { RegisteredTool } from "src/Models/Tool";
 import { VaultSearchService } from "src/Services/VaultSearchService";
@@ -22,61 +21,63 @@ export function createDefaultTools(context: DefaultToolsContext): Map<string, Re
 }
 
 function createVaultSearchTool({ app, vaultSearchService }: DefaultToolsContext): RegisteredTool {
-  return tool({
+  return {
     description:
-      "Search the Obsidian vault for files by name or content. Returns file paths, names, and content previews. Use this to find relevant notes before reading them.",
-    inputSchema: zodSchema(
-      z.object({
-        query: z
-          .string()
-          .describe(
-            "The search query to find files. Can be keywords, topics, or phrases to search for in file names and content."
-          ),
-        limit: z
-          .number()
-          .optional()
-          .default(10)
-          .describe("Maximum number of search results to return. Default is 10, maximum is 50."),
-      })
-    ),
+      "Search the Obsidian vault by file name or content. Returns paths and names without note contents; the user selects results before any file content is shared.",
+    inputSchema: z.object({
+      query: z
+        .string()
+        .min(1)
+        .describe(
+          "The search query to find files. Can be keywords, topics, or phrases to search for in file names and content."
+        ),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .default(10)
+        .describe("Maximum number of search results to return. Default is 10, maximum is 50."),
+    }),
     execute: async (args: { query: string; limit?: number }) => {
       const results = await vaultSearchService.searchVault(args, { app, toolCallId: "", messages: [] });
       return results.map((result) => ({ ...result, path: `[${result.basename}](${result.path})` }));
     },
-  }) as unknown as RegisteredTool;
+  };
 }
 
 function createFileReadTool({ app, vaultSearchService }: DefaultToolsContext): RegisteredTool {
-  return tool({
+  return {
     description:
       "Read the full contents of specific files from the vault. User will be asked to approve which files to share. Use this after searching to get complete file contents.",
-    inputSchema: zodSchema(
-      z.object({
-        filePaths: z
-          .array(z.string())
-          .describe("Array of file paths to read. Use the paths returned from vault_search."),
-      })
-    ),
+    inputSchema: z.object({
+      filePaths: z
+        .array(z.string())
+        .min(1)
+        .describe("Array of file paths to read. Use the paths returned from vault_search."),
+    }),
     execute: async (args: { filePaths: string[] }) => {
       return await vaultSearchService.readFiles(args, { app, toolCallId: "", messages: [] });
     },
-  }) as unknown as RegisteredTool;
+  };
 }
 
 function createWebSearchTool({ settings, webSearchService }: DefaultToolsContext): RegisteredTool {
-  return tool({
+  return {
     description:
       "Search the web for information on a topic. Returns titles, URLs, and snippets from search results. User will be asked to approve which results to share.",
-    inputSchema: zodSchema(
-      z.object({
-        query: z.string().describe("The search query to look up on the web"),
-        limit: z
-          .number()
-          .optional()
-          .default(5)
-          .describe("Maximum number of search results to return. Default is 5, maximum is 10."),
-      })
-    ),
+    inputSchema: z.object({
+      query: z.string().min(1).describe("The search query to look up on the web"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .optional()
+        .default(5)
+        .describe("Maximum number of search results to return. Default is 5, maximum is 10."),
+    }),
     execute: async (args: { query: string; limit?: number }) => {
       return await webSearchService.searchWeb(
         args,
@@ -85,5 +86,5 @@ function createWebSearchTool({ settings, webSearchService }: DefaultToolsContext
         settings.webSearchApiUrl
       );
     },
-  }) as unknown as RegisteredTool;
+  };
 }

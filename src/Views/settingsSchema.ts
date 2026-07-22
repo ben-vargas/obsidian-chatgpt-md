@@ -1,5 +1,6 @@
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { DEFAULT_DATE_FORMAT, ROLE_IDENTIFIER, ROLE_USER } from "src/Constants";
+import { getProviderDefinitions } from "src/Services/Providers/ProviderRegistry";
 import {
   DEFAULT_ANTHROPIC_CONFIG,
   DEFAULT_GEMINI_CONFIG,
@@ -21,15 +22,24 @@ export interface SettingDefinition {
   group: string;
 }
 
-export const COLLAPSIBLE_GROUPS = [
-  "OpenAI",
-  "Anthropic",
-  "Gemini",
-  "OpenRouter",
-  "Z.AI",
-  "Ollama (Local)",
-  "LM Studio (Local)",
-];
+export const COLLAPSIBLE_GROUPS = getProviderDefinitions().map((provider) =>
+  provider.local ? `${provider.label} (Local)` : provider.label
+);
+
+function numericProviderSettings(
+  group: string,
+  fields: Array<[keyof ChatGPT_MDSettings, string, string]>
+): SettingDefinition[] {
+  return fields.map(([id, name, placeholder]) => ({
+    id,
+    name: `Default ${name}`,
+    description: `Default ${name.toLowerCase()} for ${group.replace(" (Local)", "")} chats`,
+    type: "text",
+    valueType: "number",
+    placeholder,
+    group,
+  }));
+}
 
 const SETTINGS_SCHEMA: SettingDefinition[] = [
   // API Keys
@@ -168,6 +178,11 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     placeholder: "400",
     group: "OpenAI",
   },
+  ...numericProviderSettings("OpenAI", [
+    ["openaiDefaultTopP", "Top P", "1"],
+    ["openaiDefaultPresencePenalty", "Presence Penalty", "0"],
+    ["openaiDefaultFrequencyPenalty", "Frequency Penalty", "0"],
+  ]),
 
   // Anthropic Defaults
   {
@@ -240,6 +255,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     placeholder: "400",
     group: "Gemini",
   },
+  ...numericProviderSettings("Gemini", [["geminiDefaultTopP", "Top P", "1"]]),
 
   // OpenRouter Defaults
   {
@@ -276,6 +292,11 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     placeholder: "400",
     group: "OpenRouter",
   },
+  ...numericProviderSettings("OpenRouter", [
+    ["openrouterDefaultTopP", "Top P", "1"],
+    ["openrouterDefaultPresencePenalty", "Presence Penalty", "0.5"],
+    ["openrouterDefaultFrequencyPenalty", "Frequency Penalty", "0.5"],
+  ]),
 
   // Z.AI Defaults
   {
@@ -331,6 +352,7 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     placeholder: "0.7",
     group: "Ollama (Local)",
   },
+  ...numericProviderSettings("Ollama (Local)", [["ollamaDefaultTopP", "Top P", "1"]]),
 
   // LM Studio Defaults (Local)
   {
@@ -350,6 +372,11 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     placeholder: "0.7",
     group: "LM Studio (Local)",
   },
+  ...numericProviderSettings("LM Studio (Local)", [
+    ["lmstudioDefaultTopP", "Top P", "1"],
+    ["lmstudioDefaultPresencePenalty", "Presence Penalty", "0"],
+    ["lmstudioDefaultFrequencyPenalty", "Frequency Penalty", "0"],
+  ]),
 
   // Folders
   {

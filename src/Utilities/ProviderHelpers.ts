@@ -80,12 +80,14 @@ export const aiProviderFromUrl = (url?: string, model?: string): string | undefi
  * Determine the AI provider from available API keys
  * Uses a priority order: OpenAI > Anthropic > Gemini > OpenRouter > Z.AI
  */
-export const aiProviderFromKeys = (config: Record<string, any>): string | null => {
-  const hasOpenRouterKey = isValidApiKey(config.openrouterApiKey);
-  const hasOpenAIKey = isValidApiKey(config.apiKey);
-  const hasAnthropicKey = isValidApiKey(config.anthropicApiKey);
-  const hasGeminiKey = isValidApiKey(config.geminiApiKey);
-  const hasZaiKey = isValidApiKey(config.zaiApiKey);
+export const aiProviderFromKeys = (config: Record<string, unknown>): string | null => {
+  const key = (name: string): string | undefined =>
+    typeof config[name] === "string" ? (config[name] as string) : undefined;
+  const hasOpenRouterKey = isValidApiKey(key("openrouterApiKey"));
+  const hasOpenAIKey = isValidApiKey(key("apiKey"));
+  const hasAnthropicKey = isValidApiKey(key("anthropicApiKey"));
+  const hasGeminiKey = isValidApiKey(key("geminiApiKey"));
+  const hasZaiKey = isValidApiKey(key("zaiApiKey"));
 
   // Priority order: OpenAI > Anthropic > Gemini > OpenRouter > Z.AI
   if (hasOpenAIKey) {

@@ -1,16 +1,15 @@
-import { Editor, MarkdownView, Plugin, TFile } from "obsidian";
+import { MarkdownView, Plugin, TFile } from "obsidian";
 import { ChatGPT_MDSettings, DEFAULT_SETTINGS, MergedFrontmatterConfig } from "src/Models/Config";
 import { ChatGPT_MDSettingsTab } from "../Views/ChatGPT_MDSettingsTab";
 import { NotificationService } from "./NotificationService";
-import { ErrorService } from "./ErrorService";
 import { SettingsMigrationService } from "./SettingsMigration";
 import { FrontmatterManager } from "./FrontmatterManager";
-import { objectToYamlFrontmatter, parseSettingsFrontmatter } from "src/Utilities/YamlHelpers";
+import { parseSettingsFrontmatter } from "src/Utilities/YamlHelpers";
 import { getDefaultConfigForService } from "src/Utilities/FrontmatterHelpers";
 import { aiProviderFromKeys, aiProviderFromUrl } from "src/Utilities/ProviderHelpers";
 import type { AgentService } from "./AgentService";
 import { AI_SERVICE_OPENAI } from "src/Constants";
-import { getProviderFrontmatterFields } from "./Providers/ProviderRegistry";
+import { findProviderDefinition, getProviderFrontmatterFields } from "./Providers/ProviderRegistry";
 import { Logger } from "src/Utilities/Logger";
 
 /**
@@ -20,21 +19,15 @@ import { Logger } from "src/Utilities/Logger";
 export class SettingsService {
   private settings: ChatGPT_MDSettings;
   private migrationService: SettingsMigrationService;
-  private agentService?: AgentService;
-
-  setAgentService(agentService: AgentService): void {
-    this.agentService = agentService;
-  }
 
   constructor(
     private readonly plugin: Plugin,
     private readonly frontmatterManager: FrontmatterManager,
-    private readonly notificationService: NotificationService = new NotificationService(),
-    private readonly errorService: ErrorService = new ErrorService(new NotificationService())
+    private readonly agentService: AgentService,
+    private readonly notificationService: NotificationService
   ) {
     this.migrationService = new SettingsMigrationService();
     this.settings = structuredClone(DEFAULT_SETTINGS);
-    this.loadSettings().catch((error) => this.notificationService.showError("Failed to load settings"));
   }
 
   /**
@@ -48,20 +41,12 @@ export class SettingsService {
    * Migrate settings from older versions
    */
   async migrateSettings(): Promise<void> {
-    const needsUpdate = await this.migrationService.migrateSettings(this.settings, this.updateSettings.bind(this));
+    const needsUpdate = this.migrationService.migrateSettings(this.settings, this.updateSettings.bind(this));
 
     // Save settings if any changes were made
     if (needsUpdate) {
       await this.saveSettings();
     }
-  }
-
-  /**
-   * Migrate user's existing frontmatter strings from old format to new format
-   * This helps users who have customized their defaultChatFrontmatter
-   */
-  migrateFrontmatterString(frontmatterString: string): string {
-    return this.migrationService.migrateFrontmatterString(frontmatterString);
   }
 
   /**
@@ -93,13 +78,11 @@ export class SettingsService {
    * Add settings tab to the plugin
    */
   async addSettingTab(): Promise<void> {
-    // Load settings and run migrations if needed
-    await this.loadSettings();
-
-    // Create the settings tab with the current settings
+    // Create the settings tab with the already loaded settings
     this.plugin.addSettingTab(
       new ChatGPT_MDSettingsTab(this.plugin.app, this.plugin, {
         settings: this.settings,
+        updateSettings: this.updateSettings.bind(this),
         saveSettings: this.saveSettings.bind(this),
       })
     );
@@ -115,7 +98,7 @@ export class SettingsService {
 
     // Use FrontmatterManager to get frontmatter
     if (view.file) {
-      const fileFrontmatter = await this.frontmatterManager.readFrontmatter(view.file);
+      const fileFrontmatter = this.frontmatterManager.readFrontmatter(view.file);
       if (fileFrontmatter) {
         frontmatter = { ...fileFrontmatter };
       }
@@ -150,17 +133,29 @@ export class SettingsService {
 
     // Return final configuration with everything merged
     // Priority order: defaultConfig < defaultFrontmatter < settings < agentFrontmatter < frontmatter
+    const providerDefinition = findProviderDefinition(aiService);
+    const providerSettings = getProviderFrontmatterFields(aiService, this.settings);
+    const explicitUrl = frontmatter.url ?? agentFrontmatter.url ?? defaultFrontmatter.url;
+    const providerUrl = providerDefinition ? merged[providerDefinition.urlSetting] : undefined;
+    const effectiveUrl = this.firstNonEmptyString(explicitUrl, providerUrl, defaultConfig.url);
+
     const finalConfig = {
       ...defaultConfig,
       ...defaultFrontmatter,
       ...this.settings,
+      ...providerSettings,
       ...agentFrontmatter,
       ...frontmatter,
       aiService,
+      url: effectiveUrl,
     };
 
     // Cast to MergedFrontmatterConfig - at this point we have all necessary fields from defaults and merging
     return finalConfig as unknown as MergedFrontmatterConfig;
+  }
+
+  private firstNonEmptyString(...values: unknown[]): string {
+    return values.find((value): value is string => typeof value === "string" && value.trim().length > 0) || "";
   }
 
   /**
@@ -169,7 +164,7 @@ export class SettingsService {
    */
   private async resolveAgentFrontmatter(noteFrontmatter: Record<string, unknown>): Promise<Record<string, unknown>> {
     const agentName = noteFrontmatter.agent as string | undefined;
-    if (!agentName || !this.agentService) return {};
+    if (!agentName) return {};
 
     const agent = await this.agentService.resolveAgentByName(agentName, this.settings);
     if (!agent) return {};
@@ -191,11 +186,11 @@ export class SettingsService {
    * @param key The key to update
    * @param value The new value
    */
-  async updateFrontmatterField(editor: Editor, key: string, value: unknown): Promise<void> {
+  async updateFrontmatterField(key: string, value: unknown): Promise<void> {
     // Get the active file
     const activeView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
     if (!activeView || !activeView.file) {
-      console.error("[ChatGPT MD] No active file found for frontmatter update");
+      Logger.error("[ChatGPT MD] No active file found for frontmatter update");
       return;
     }
 
@@ -205,39 +200,8 @@ export class SettingsService {
       // Use FrontmatterManager to update the field
       await this.frontmatterManager.updateFrontmatterField(file, key, value);
     } catch (error) {
-      console.error("[ChatGPT MD] Error updating frontmatter:", error);
+      Logger.error("[ChatGPT MD] Error updating frontmatter", { error });
       throw error;
     }
-  }
-
-  // objectToYamlFrontmatter moved to YamlHelpers.ts - using imported function
-
-  /**
-   * Generate frontmatter for a new chat
-   */
-  generateFrontmatter(additionalSettings: Record<string, unknown> = {}): string {
-    // If default frontmatter exists in settings, use it as a base
-    if (this.settings.defaultChatFrontmatter) {
-      return this.handleExistingTemplate(additionalSettings);
-    }
-
-    // Generate frontmatter from scratch using data-driven approach
-    const aiService = (additionalSettings.aiService as string) || AI_SERVICE_OPENAI;
-    const frontmatterObj: Record<string, unknown> = {
-      stream: this.settings.stream,
-      ...additionalSettings,
-      ...getProviderFrontmatterFields(aiService, this.settings),
-    };
-
-    return objectToYamlFrontmatter(frontmatterObj);
-  }
-
-  private handleExistingTemplate(additionalSettings: Record<string, unknown>): string {
-    if (Object.keys(additionalSettings).length > 0) {
-      const defaultFrontmatter = parseSettingsFrontmatter(this.settings.defaultChatFrontmatter);
-      const merged = { ...defaultFrontmatter, ...additionalSettings };
-      return objectToYamlFrontmatter(merged);
-    }
-    return this.settings.defaultChatFrontmatter + "\n\n";
   }
 }

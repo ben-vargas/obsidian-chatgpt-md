@@ -6,8 +6,11 @@ on:
   pull_request:
     branches: [master, main]
 
+permissions:
+  contents: read
+
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,25 +20,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: "yarn"
+          cache: "npm"
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: npm ci
+
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Lint
-        run: yarn lint || echo "Linting found issues (warnings/errors), but continuing..."
+        run: npm run lint
 
       - name: Type check
-        run: yarn tsc --noEmit --skipLibCheck
+        run: npm run typecheck
 
       - name: Run tests
-        run: yarn test --coverage
+        run: npm test -- --coverage --runInBand
 
       - name: Build
-        run: yarn build
+        run: npm run build
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false

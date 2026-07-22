@@ -1,44 +1,32 @@
+import type { ClientRequest, IncomingMessage, RequestOptions } from "http";
+import type { request as HttpRequest } from "http";
 import { Logger } from "src/Utilities/Logger";
-// Conditional imports for Node.js modules (only available on desktop)
-let httpRequest: any;
-let httpsRequest: any;
-let URL: any;
 
-// Debug flag to track module loading state
-let nodeModulesLoadError: string | null = null;
+type NodeRequest = typeof HttpRequest;
+type NodeRequire = (moduleName: "http" | "https") => { request: NodeRequest };
 
-// Try to load Node.js modules using require
+let httpRequest: NodeRequest | undefined;
+let httpsRequest: NodeRequest | undefined;
+let nodeModulesLoadError: string | undefined;
+
 try {
-  const nodeRequire = (globalThis as any).require;
-  if (!nodeRequire) {
-    nodeModulesLoadError = "globalThis.require is undefined";
+  const nodeRequire = (globalThis as typeof globalThis & { require?: NodeRequire }).require;
+  if (nodeRequire) {
+    httpRequest = nodeRequire("http").request;
+    httpsRequest = nodeRequire("https").request;
   } else {
-    const http = nodeRequire("http");
-    const https = nodeRequire("https");
-    const url = nodeRequire("url");
-
-    httpRequest = http.request;
-    httpsRequest = https.request;
-    URL = url.URL;
+    nodeModulesLoadError = "globalThis.require is undefined";
   }
-} catch (error: any) {
-  // Node.js modules not available (mobile environment)
-  nodeModulesLoadError = error?.message || String(error);
-  httpRequest = null;
-  httpsRequest = null;
-  URL = globalThis.URL; // Use Web API URL instead
+} catch (error) {
+  nodeModulesLoadError = error instanceof Error ? error.message : String(error);
 }
 
-// Log module loading state at initialization
-Logger.debug(`[ChatGPT MD] requestStream module loaded`, {
-  nodeModulesAvailable: !!(httpRequest && httpsRequest),
+Logger.debug("[ChatGPT MD] request transport initialized", {
+  nodeModulesAvailable: Boolean(httpRequest && httpsRequest),
   error: nodeModulesLoadError,
 });
 
-/**
- * Options for streaming HTTP requests (similar to Obsidian's RequestUrlParam)
- */
-interface RequestStreamParam {
+export interface RequestStreamParam {
   url: string;
   method?: string;
   body?: string;
@@ -46,193 +34,158 @@ interface RequestStreamParam {
   signal?: AbortSignal;
 }
 
-/**
- * A streaming HTTP request function that bypasses CORS using Node.js HTTP modules on desktop
- * Falls back to fetch() on mobile environments where Node.js modules are not available
- *
- * @param options Request options
- * @returns Promise<Response> - Web API compatible Response object
- */
-export async function requestStream(options: RequestStreamParam): Promise<Response> {
-  Logger.debug(`[ChatGPT MD] requestStream called`, {
-    url: options.url,
-    method: options.method,
-    hasBody: !!options.body,
-    nodeModulesAvailable: !!(httpRequest && httpsRequest),
-  });
-
-  // Check if Node.js HTTP modules are available (desktop environment)
-  if (httpRequest && httpsRequest) {
-    Logger.debug(`[ChatGPT MD] Using Node.js HTTP for request`);
-    return requestStreamNodeHttp(options);
-  } else {
-    // Fallback to fetch() for mobile environments
-    Logger.debug(`[ChatGPT MD] Using fetch fallback for request`);
-    return requestStreamFetch(options);
-  }
+/** Use Node HTTP on desktop to bypass CORS, with standards-based fetch on mobile. */
+export function requestStream(options: RequestStreamParam): Promise<Response> {
+  return httpRequest && httpsRequest
+    ? requestStreamNodeHttp(options, httpRequest, httpsRequest)
+    : requestStreamFetch(options);
 }
 
-/**
- * Node.js HTTP implementation (desktop only)
- */
-async function requestStreamNodeHttp(options: RequestStreamParam): Promise<Response> {
+export function requestStreamNodeHttp(
+  options: RequestStreamParam,
+  http: NodeRequest,
+  https: NodeRequest,
+  redirectCount = 0
+): Promise<Response> {
   return new Promise((resolve, reject) => {
-    const urlObj = new URL(options.url);
-    const isHttps = urlObj.protocol === "https:";
-    const request = isHttps ? httpsRequest : httpRequest;
+    const url = new URL(options.url);
+    const request = url.protocol === "https:" ? https : http;
+    const requestOptions = createRequestOptions(url, options);
 
-    const requestOptions = {
-      hostname: urlObj.hostname === "localhost" ? "127.0.0.1" : urlObj.hostname,
-      port: urlObj.port || (isHttps ? 443 : 80),
-      path: urlObj.pathname + urlObj.search,
-      method: options.method || "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...options.headers,
-      },
+    let settled = false;
+    let req: ClientRequest;
+    const abort = (): void => {
+      req?.destroy();
+      if (!settled) {
+        settled = true;
+        reject(new DOMException("Request aborted", "AbortError"));
+      }
     };
 
-    const req = request(requestOptions, (res: any) => {
-      const headers = new Headers();
-
-      // Convert Node.js headers to Web API Headers
-      Object.entries(res.headers).forEach(([key, value]) => {
-        if (value) {
-          headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
-        }
-      });
-
-      const status = res.statusCode || 0;
-      const ok = status >= 200 && status < 300;
-
-      // Create a ReadableStream from the Node.js response
-      const body = new ReadableStream({
-        start(controller) {
-          res.on("data", (chunk: any) => {
-            controller.enqueue(new Uint8Array(chunk));
-          });
-
-          res.on("end", () => {
-            controller.close();
-          });
-
-          res.on("error", (err: any) => {
-            controller.error(err);
-          });
-        },
-      });
-
-      // Create a Web API compatible Response object
-      const response = {
-        ok,
-        status,
-        statusText: res.statusMessage || "",
-        headers,
-        body,
-
-        json: async (): Promise<any> => {
-          const reader = body.getReader();
-          const chunks: Uint8Array[] = [];
-
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              chunks.push(value);
-            }
-
-            const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-            const combined = new Uint8Array(totalLength);
-            let offset = 0;
-
-            for (const chunk of chunks) {
-              combined.set(chunk, offset);
-              offset += chunk.length;
-            }
-
-            const text = new TextDecoder().decode(combined);
-            return JSON.parse(text);
-          } finally {
-            reader.releaseLock();
-          }
-        },
-
-        text: async (): Promise<string> => {
-          const reader = body.getReader();
-          const chunks: Uint8Array[] = [];
-
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              chunks.push(value);
-            }
-
-            const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-            const combined = new Uint8Array(totalLength);
-            let offset = 0;
-
-            for (const chunk of chunks) {
-              combined.set(chunk, offset);
-              offset += chunk.length;
-            }
-
-            return new TextDecoder().decode(combined);
-          } finally {
-            reader.releaseLock();
-          }
-        },
-
-        clone: (): Response => {
-          throw new Error("Response cloning not implemented for requestStream");
-        },
-      } as Response;
-
-      resolve(response);
-    });
-
-    // Handle request abortion
-    if (options.signal) {
-      options.signal.addEventListener("abort", () => {
-        req.destroy();
-        reject(new Error("Request aborted"));
-      });
+    if (options.signal?.aborted) {
+      reject(new DOMException("Request aborted", "AbortError"));
+      return;
     }
 
-    req.on("error", (error: any) => {
-      reject(error);
+    req = request(requestOptions, (incoming) => {
+      if (settled) return;
+      settled = true;
+      options.signal?.removeEventListener("abort", abort);
+      try {
+        resolve(resolveIncomingResponse(options, incoming, http, https, redirectCount));
+      } catch (error) {
+        incoming.destroy();
+        reject(error);
+      }
     });
 
-    // Write body data if present
-    if (options.body) {
-      req.write(options.body);
-    }
+    options.signal?.addEventListener("abort", abort, { once: true });
+    req.once("error", (error) => {
+      options.signal?.removeEventListener("abort", abort);
+      if (!settled) {
+        settled = true;
+        reject(error);
+      }
+    });
 
+    if (options.body) req.write(options.body);
     req.end();
   });
 }
 
-/**
- * Fetch implementation (mobile fallback)
- */
-async function requestStreamFetch(options: RequestStreamParam): Promise<Response> {
-  // Only add Content-Type if not already present in options.headers
-  const headers: Record<string, string> = {
-    ...(options.headers && !options.headers["Content-Type"] && !options.headers["content-type"]
-      ? { "Content-Type": "application/json" }
-      : {}),
-    ...options.headers,
-  };
-
-  const fetchOptions: RequestInit = {
+function createRequestOptions(url: URL, options: RequestStreamParam): RequestOptions {
+  return {
+    hostname: url.hostname === "localhost" ? "127.0.0.1" : url.hostname,
+    port: url.port || (url.protocol === "https:" ? 443 : 80),
+    path: `${url.pathname}${url.search}`,
     method: options.method || "GET",
-    headers,
-    signal: options.signal,
+    headers: { "Content-Type": "application/json", ...options.headers },
   };
+}
 
-  if (options.body) {
-    fetchOptions.body = options.body;
+function resolveIncomingResponse(
+  options: RequestStreamParam,
+  incoming: IncomingMessage,
+  http: NodeRequest,
+  https: NodeRequest,
+  redirectCount: number
+): Response | Promise<Response> {
+  const redirect = getRedirectOptions(options, incoming, redirectCount);
+  if (!redirect) return createResponse(incoming);
+
+  incoming.resume();
+  return requestStreamNodeHttp(redirect, http, https, redirectCount + 1);
+}
+
+function getRedirectOptions(
+  options: RequestStreamParam,
+  response: IncomingMessage,
+  redirectCount: number
+): RequestStreamParam | null {
+  const status = response.statusCode || 0;
+  const location = response.headers.location;
+  if (![301, 302, 303, 307, 308].includes(status) || !location) return null;
+  if (redirectCount >= 5) throw new Error("Too many redirects");
+
+  const source = new URL(options.url);
+  const target = new URL(location, source);
+  const headers = { ...options.headers };
+  if (target.origin !== source.origin) {
+    for (const key of Object.keys(headers)) {
+      if (/authorization|api[-_]?key|token/i.test(key)) delete headers[key];
+    }
   }
 
-  return await fetch(options.url, fetchOptions);
+  const switchToGet = status === 303 || ((status === 301 || status === 302) && options.method === "POST");
+  return {
+    ...options,
+    url: target.toString(),
+    method: switchToGet ? "GET" : options.method,
+    body: switchToGet ? undefined : options.body,
+    headers,
+  };
+}
+
+function createResponse(incoming: IncomingMessage): Response {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(incoming.headers)) {
+    if (value !== undefined) headers.set(key, Array.isArray(value) ? value.join(", ") : String(value));
+  }
+
+  const status = incoming.statusCode || 500;
+  if (status === 204 || status === 205 || status === 304) {
+    incoming.resume();
+    return new Response(null, { status, statusText: incoming.statusMessage || "", headers });
+  }
+
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      incoming.on("data", (chunk: Buffer | Uint8Array) => controller.enqueue(new Uint8Array(chunk)));
+      incoming.once("end", () => controller.close());
+      incoming.once("error", (error) => controller.error(error));
+    },
+    cancel() {
+      incoming.destroy();
+    },
+  });
+
+  return new Response(body, {
+    status,
+    statusText: incoming.statusMessage || "",
+    headers,
+  });
+}
+
+export function requestStreamFetch(options: RequestStreamParam): Promise<Response> {
+  const headers: Record<string, string> = { ...options.headers };
+  if (!Object.keys(headers).some((key) => key.toLowerCase() === "content-type")) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  return fetch(options.url, {
+    method: options.method || "GET",
+    headers,
+    body: options.body,
+    signal: options.signal,
+  });
 }

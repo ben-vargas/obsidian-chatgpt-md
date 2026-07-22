@@ -1,11 +1,6 @@
-import {
-  escapeRegExp,
-  extractRoleAndMessage,
-  getHeadingPrefix,
-  parseSettingsFrontmatter,
-  removeYAMLFrontMatter,
-  splitMessages,
-} from "./TextHelpers";
+import { escapeRegExp, extractRoleAndMessage, getHeadingPrefix } from "./TextHelpers";
+import { splitMessages } from "./MessageHelpers";
+import { parseSettingsFrontmatter, removeYAMLFrontMatter } from "./YamlHelpers";
 
 describe("extractRoleAndMessage", () => {
   it("returns user role when no role identifier present", () => {
@@ -157,8 +152,7 @@ maxTokens: 1000
 tags: []
 ---`;
     const result = parseSettingsFrontmatter(yaml);
-    // Empty array in YAML results in array with empty string due to slice/split behavior
-    expect(result.tags).toEqual([""]);
+    expect(result.tags).toEqual([]);
   });
 
   it("handles quoted strings in arrays", () => {

@@ -1,5 +1,4 @@
 import {
-  buildModelId,
   getApiUrlsFromFrontmatter,
   getDefaultConfigForService,
   getDefaultModelForService,
@@ -137,28 +136,6 @@ describe("isTitleTimestampFormat", () => {
 
   it("rejects longer string with correct prefix", () => {
     expect(isTitleTimestampFormat("2024-02-08-extra", "YYYY-MM-DD")).toBe(false);
-  });
-});
-
-describe("buildModelId", () => {
-  it("adds provider prefix to model without prefix", () => {
-    expect(buildModelId("gpt-4", "openai")).toBe("openai@gpt-4");
-  });
-
-  it("does not add prefix if already present", () => {
-    expect(buildModelId("openai@gpt-4", "openai")).toBe("openai@gpt-4");
-  });
-
-  it("handles different providers", () => {
-    expect(buildModelId("claude-3", "anthropic")).toBe("anthropic@claude-3");
-  });
-
-  it("preserves existing prefix from different provider", () => {
-    expect(buildModelId("openai@gpt-4", "anthropic")).toBe("openai@gpt-4");
-  });
-
-  it("handles empty model", () => {
-    expect(buildModelId("", "openai")).toBe("openai@");
   });
 });
 

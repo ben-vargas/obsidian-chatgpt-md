@@ -1,8 +1,6 @@
 // Mock Obsidian API for testing
 import { jest } from "@jest/globals";
 
-import { jest } from "@jest/globals";
-
 export class App {
   workspace = {
     getActiveViewOfType: jest.fn(),
@@ -169,6 +167,52 @@ export const requestUrl = jest.fn(() =>
 
 // Mock normalizePath
 export const normalizePath = jest.fn((path: string) => path);
+
+// Lightweight YAML mocks for utility tests. Production uses Obsidian's parser.
+export function parseYaml(content: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  let arrayKey: string | null = null;
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+
+    if (arrayKey && line.startsWith("-")) {
+      const values = result[arrayKey] as string[];
+      values.push(unquote(line.slice(1).trim()));
+      continue;
+    }
+    arrayKey = null;
+
+    const separator = line.indexOf(":");
+    if (separator < 0) continue;
+    const key = line.slice(0, separator).trim();
+    const rawValue = line.slice(separator + 1).trim();
+
+    if (!rawValue) {
+      result[key] = [];
+      arrayKey = key;
+    } else if (rawValue.startsWith("[") && rawValue.endsWith("]")) {
+      const inner = rawValue.slice(1, -1);
+      result[key] = inner ? inner.split(",").map((value) => unquote(value.trim())) : [];
+    } else if (rawValue === "true" || rawValue === "false") {
+      result[key] = rawValue === "true";
+    } else if (rawValue === "null") {
+      result[key] = null;
+    } else if (rawValue !== "" && Number.isFinite(Number(rawValue))) {
+      result[key] = Number(rawValue);
+    } else {
+      result[key] = unquote(rawValue);
+    }
+  }
+
+  return result;
+}
+
+function unquote(value: string): string {
+  const quoted = (value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"));
+  return quoted ? value.slice(1, -1) : value;
+}
 
 // Mock moment (used in some utilities)
 export const moment = jest.fn(() => ({

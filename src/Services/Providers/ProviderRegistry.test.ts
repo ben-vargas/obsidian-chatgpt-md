@@ -3,6 +3,7 @@ import {
   createProviderAdapters,
   getProviderDefinition,
   getProviderDefinitions,
+  getProviderFactory,
   getProviderUrl,
 } from "./ProviderRegistry";
 import { DEFAULT_SETTINGS } from "src/Models/Config";
@@ -14,6 +15,17 @@ describe("ProviderRegistry", () => {
 
     expect(providerIds.sort()).toEqual([...AI_SERVICES].sort());
     expect(new Set(providerIds).size).toBe(providerIds.length);
+  });
+
+  it("contains complete operational metadata for every provider", () => {
+    for (const provider of getProviderDefinitions()) {
+      expect(provider.label).toBeTruthy();
+      expect(provider.urlSetting).toBeTruthy();
+      expect(provider.defaultUrl).toMatch(/^https?:\/\//);
+      expect(provider.defaultConfig).toMatchObject({ aiService: provider.id, url: provider.defaultUrl });
+      expect(provider.requiresApiKey).toBe(Boolean(provider.apiKeySetting));
+      expect(typeof provider.local).toBe("boolean");
+    }
   });
 
   it("creates an adapter for every provider", () => {
@@ -30,6 +42,12 @@ describe("ProviderRegistry", () => {
     expect(getProviderUrl({ ...DEFAULT_SETTINGS, openaiUrl: "" }, openAiProvider)).toBe(openAiProvider.defaultUrl);
     expect(getProviderUrl({ ...DEFAULT_SETTINGS, openaiUrl: "https://example.test" }, openAiProvider)).toBe(
       "https://example.test"
+    );
+  });
+
+  it("selects the Anthropic-compatible factory for the Z.AI coding endpoint", () => {
+    expect(getProviderFactory("zai", "https://api.z.ai/api/anthropic")).not.toBe(
+      getProviderFactory("zai", "https://api.z.ai/api/paas/v4")
     );
   });
 

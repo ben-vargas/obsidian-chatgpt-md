@@ -25,17 +25,6 @@ export const AI_SERVICES = [
 // Type derived from AI service constants
 export type AiServiceType = (typeof AI_SERVICES)[number];
 
-// API endpoints for each service
-export const API_ENDPOINTS = {
-  [AI_SERVICE_OPENAI]: "/v1/chat/completions",
-  [AI_SERVICE_OPENROUTER]: "/api/v1/chat/completions",
-  [AI_SERVICE_OLLAMA]: "/api/chat",
-  [AI_SERVICE_LMSTUDIO]: "/v1/chat/completions",
-  [AI_SERVICE_ANTHROPIC]: "/v1/messages",
-  [AI_SERVICE_GEMINI]: "/v1beta/models/{model}:generateContent",
-};
-
-export const ADD_COMMENT_BLOCK_COMMAND_ID = "add-comment-block";
 export const ADD_HR_COMMAND_ID = "add-hr";
 export const CALL_CHATGPT_API_COMMAND_ID = "call-chatgpt-api";
 export const STOP_STREAMING_COMMAND_ID = "stop-streaming";
@@ -43,15 +32,6 @@ export const MOVE_TO_CHAT_COMMAND_ID = "move-to-chat";
 export const INFER_TITLE_COMMAND_ID = "infer-title";
 export const CHOOSE_CHAT_TEMPLATE_COMMAND_ID = "choose-chat-template";
 export const CLEAR_CHAT_COMMAND_ID = "clear-chat";
-
-export const CHAT_ERROR_MESSAGE_401 =
-  "I am sorry. There was an authorization issue with the external API (Status 401).\nPlease check your API key in the settings or set your default model in the settings if you use Ollama or LM Studio";
-export const CHAT_ERROR_MESSAGE_NO_CONNECTION =
-  "I am sorry. There was an issue reaching the network.\nPlease check your network connection.";
-export const CHAT_ERROR_MESSAGE_404 =
-  "I am sorry, your request looks wrong. Please check your URL or model name in the settings or frontmatter.";
-export const CHAT_ERROR_RESPONSE =
-  "I am sorry, I could not answer your request because of an error, here is what went wrong:";
 
 export const CHAT_FOLDER_TYPE = "chatFolder";
 export const CHAT_TEMPLATE_FOLDER_TYPE = "chatTemplateFolder";
@@ -81,7 +61,6 @@ export const HORIZONTAL_LINE_MD = `<hr class="${HORIZONTAL_LINE_CLASS}">`;
 export const ROLE_IDENTIFIER = "role::";
 export const ROLE_ASSISTANT = "assistant";
 export const ROLE_DEVELOPER = "developer";
-export const ROLE_SYSTEM = "system";
 export const ROLE_USER = "user";
 
 export const FETCH_MODELS_TIMEOUT_MS = 6000;
@@ -134,9 +113,5 @@ Create a comprehensive system prompt that includes:
 The prompt should be thorough (200-500 words), well-structured, and immediately usable without modification. Use clear language and avoid vague instructions.`;
 
 // Truncation error messages
-export const TRUNCATION_ERROR_FULL =
-  "⚠️ **Response was truncated due to token limit.** Please increase the `max_tokens` setting in ChatGPT MD plugin settings to get the complete response.";
-export const TRUNCATION_ERROR_PARTIAL =
-  "⚠️ *Note: Some alternative responses were truncated due to token limit. Consider increasing `max_tokens` in settings for fuller responses.*";
 export const TRUNCATION_ERROR_INDICATOR = "Response was truncated due to token limit";
 export const TITLE_INFERENCE_ERROR_HEADER = "⚠️ Title Inference Error";

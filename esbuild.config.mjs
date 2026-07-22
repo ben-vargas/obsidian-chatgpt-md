@@ -54,10 +54,9 @@ const context = await esbuild.context({
     keepNames: false, // Allow name mangling for smaller bundles
 
     // Dead code elimination
-    drop: ["console", "debugger"], // Remove console.log and debugger statements
-
-    // Pure annotations for better tree shaking
-    pure: ["console.log", "console.info", "console.warn", "console.debug", "console.trace"],
+    // Keep runtime diagnostics and debug-mode logging. Only debugger statements
+    // are unsafe/unhelpful in a release bundle.
+    drop: ["debugger"],
 
     // Platform-specific optimizations
     platform: "node",

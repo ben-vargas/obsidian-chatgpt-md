@@ -16,7 +16,7 @@
     "allowSyntheticDefaultImports": true,
     "strictNullChecks": true,
     "strictPropertyInitialization": false,
-    "useUnknownInCatchVariables": false,
+    "useUnknownInCatchVariables": true,
     "types": ["node"],
     "lib": ["DOM", "ES2020"]
   },

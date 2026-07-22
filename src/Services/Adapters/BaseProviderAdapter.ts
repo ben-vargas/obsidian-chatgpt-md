@@ -11,11 +11,6 @@ export abstract class BaseProviderAdapter implements ProviderAdapter {
   abstract readonly displayName: string;
 
   /**
-   * Get the default base URL for this provider
-   */
-  abstract getDefaultBaseUrl(): string;
-
-  /**
    * Get authentication headers for API requests
    */
   abstract getAuthHeaders(apiKey: string): Record<string, string>;
@@ -27,16 +22,8 @@ export abstract class BaseProviderAdapter implements ProviderAdapter {
     url: string,
     apiKey: string | undefined,
     settings: ChatGPT_MDSettings | undefined,
-    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<any>
+    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<unknown>
   ): Promise<string[]>;
-
-  /**
-   * Whether this provider supports tool calling
-   * Default: true
-   */
-  supportsToolCalling(): boolean {
-    return true;
-  }
 
   /**
    * Whether this provider requires an API key
@@ -71,7 +58,7 @@ export abstract class BaseProviderAdapter implements ProviderAdapter {
    */
   protected handleFetchError(error: unknown, customMessage?: string): void {
     const errorMessage = customMessage || `Error fetching ${this.displayName} models`;
-    console.error(`${errorMessage}:`, error);
+    Logger.error(errorMessage, { error });
   }
 
   /**
@@ -92,11 +79,17 @@ export abstract class BaseProviderAdapter implements ProviderAdapter {
   /**
    * Validate API key is present
    */
+  protected getObjectArray(response: unknown, key: string): Array<Record<string, unknown>> {
+    if (!response || typeof response !== "object") return [];
+    const value = (response as Record<string, unknown>)[key];
+    return Array.isArray(value)
+      ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      : [];
+  }
+
   protected validateApiKey(apiKey: string | undefined): boolean {
     if (!apiKey && this.requiresApiKey()) {
-      console.error(
-        `${this.displayName} API key is missing. Please add your ${this.displayName} API key in the settings.`
-      );
+      Logger.error(`${this.displayName} API key is missing. Please add it in settings.`);
       return false;
     }
     return true;
@@ -107,7 +100,7 @@ export abstract class BaseProviderAdapter implements ProviderAdapter {
    * Most OpenAI-compatible providers use "/v1"
    * @param url - Optional URL parameter (ignored by most providers)
    */
-  getApiPathSuffix(_url?: string): string {
-    return "/v1";
+  getApiPathSuffix(url?: string): string {
+    return url?.replace(/\/+$/, "").endsWith("/v1") ? "" : "/v1";
   }
 }

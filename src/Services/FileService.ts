@@ -1,11 +1,16 @@
-import { App, MarkdownView, Notice, TFile } from "obsidian";
+import { App, MarkdownView, TFile } from "obsidian";
 import { createFolderModal } from "src/Utilities/ModalHelpers";
+import { Logger } from "src/Utilities/Logger";
+import { NotificationService } from "./NotificationService";
 
 /**
  * Service responsible for file and folder operations
  */
 export class FileService {
-  constructor(private app: App) {}
+  constructor(
+    private app: App,
+    private notificationService: NotificationService
+  ) {}
 
   /**
    * Write an inferred title to a file by renaming it
@@ -29,7 +34,7 @@ export class FileService {
     try {
       await this.app.fileManager.renameFile(file, newFileName);
     } catch (err) {
-      new Notice("[ChatGPT MD] Error writing inferred title to editor");
+      this.notificationService.showError("Error writing inferred title to editor");
       throw err;
     }
   }
@@ -54,8 +59,8 @@ export class FileService {
     if (!exists) {
       const result = await createFolderModal(this.app, folderType, folderPath);
       if (!result) {
-        new Notice(
-          `[ChatGPT MD] No ${folderType} found. One must be created to use the plugin. Set one in settings and make sure it exists.`
+        this.notificationService.showWarning(
+          `No ${folderType} found. Create it or choose an existing folder in settings.`
         );
         return false;
       }
@@ -86,7 +91,7 @@ export class FileService {
       const file = this.app.metadataCache.getFirstLinkpathDest(linkPath, "");
       return file ? await this.app.vault.read(file) : null;
     } catch (error) {
-      console.error(`Error reading linked note: ${linkPath}`, error);
+      Logger.error(`Error reading linked note: ${linkPath}`, { error });
       return null;
     }
   }
@@ -95,7 +100,15 @@ export class FileService {
    * Format a date according to the given format
    */
   formatDate(date: Date, format: string): string {
-    // Simple implementation - in a real app, you'd want a more robust date formatter
-    return date.toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
+    const values: Record<string, string> = {
+      YYYY: String(date.getFullYear()).padStart(4, "0"),
+      MM: String(date.getMonth() + 1).padStart(2, "0"),
+      DD: String(date.getDate()).padStart(2, "0"),
+      hh: String(date.getHours()).padStart(2, "0"),
+      mm: String(date.getMinutes()).padStart(2, "0"),
+      ss: String(date.getSeconds()).padStart(2, "0"),
+    };
+
+    return format.replace(/YYYY|MM|DD|hh|mm|ss/g, (token) => values[token]);
   }
 }

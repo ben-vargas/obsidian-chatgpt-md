@@ -4,6 +4,7 @@ import { ChatGPT_MDSettings } from "src/Models/Config";
 import { FileService } from "./FileService";
 import { NotificationService } from "./NotificationService";
 import { HORIZONTAL_LINE_MD, NEWLINE, ROLE_ASSISTANT, ROLE_IDENTIFIER, ROLE_USER } from "src/Constants";
+import { Logger } from "src/Utilities/Logger";
 import {
   escapeRegExp,
   extractRoleAndMessage as extractRoleAndMessageUtil,
@@ -21,6 +22,13 @@ import {
  * Service responsible for all message-related operations
  * Now uses utility functions for common operations
  */
+interface AiResponse {
+  fullString: string;
+  mode: string;
+  wasAborted?: boolean;
+  model?: string;
+}
+
 export class MessageService {
   constructor(
     private fileService: FileService,
@@ -28,51 +36,11 @@ export class MessageService {
   ) {}
 
   /**
-   * Find links in a message
-   * Delegates to utility function
-   */
-  findLinksInMessage(message: string): { link: string; title: string }[] {
-    return findLinksInMessage(message);
-  }
-
-  /**
-   * Split text into messages based on horizontal line separator
-   * Delegates to utility function
-   */
-  splitMessages(text: string | undefined): string[] {
-    return splitMessages(text);
-  }
-
-  /**
-   * Remove YAML frontmatter from text
-   * Delegates to utility function
-   */
-  removeYAMLFrontMatter(note: string | undefined): string | undefined {
-    return removeYAMLFrontMatter(note);
-  }
-
-  /**
-   * Remove comments from messages
-   * Delegates to utility function
-   */
-  removeCommentsFromMessages(message: string): string {
-    return removeCommentBlocks(message);
-  }
-
-  /**
-   * Extract role and content from a message
-   * Delegates to utility function
-   */
-  extractRoleAndMessage(message: string): Message {
-    return extractRoleAndMessageUtil(message);
-  }
-
-  /**
    * Clean messages from the editor content
    */
   cleanMessagesFromNote(editor: Editor): string[] {
-    const messages = this.splitMessages(this.removeYAMLFrontMatter(editor.getValue()));
-    return messages.map((msg) => this.removeCommentsFromMessages(msg));
+    const messages = splitMessages(removeYAMLFrontMatter(editor.getValue()));
+    return messages.map(removeCommentBlocks);
   }
 
   /**
@@ -89,7 +57,7 @@ export class MessageService {
 
     messages = await Promise.all(
       messages.map(async (message) => {
-        const links = this.findLinksInMessage(message);
+        const links = findLinksInMessage(message);
         for (const link of links) {
           try {
             let content = await this.fileService.getLinkedNoteContent(link.title);
@@ -102,17 +70,17 @@ export class MessageService {
                 "gm"
               );
               content = content?.replace(regex, "");
-              content = this.removeYAMLFrontMatter(content) || null;
+              content = removeYAMLFrontMatter(content) || null;
 
               message = message.replace(
                 new RegExp(escapeRegExp(link.link), "g"),
                 `${NEWLINE}${link.title}${NEWLINE}${content}${NEWLINE}`
               );
             } else {
-              console.warn(`Error fetching linked note content for: ${link.link}`);
+              Logger.warn(`Error fetching linked note content for: ${link.link}`);
             }
           } catch (error) {
-            console.error(error);
+            Logger.error("Error expanding linked note", { error, link: link.title });
           }
         }
 
@@ -121,52 +89,15 @@ export class MessageService {
     );
 
     // Extract roles from each message
-    const messagesWithRole = messages.map((msg) => this.extractRoleAndMessage(msg));
+    const messagesWithRole = messages.map(extractRoleAndMessageUtil);
 
     return { messages, messagesWithRole };
   }
 
   /**
-   * Add system commands to messages
-   */
-  addSystemCommandsToMessages(messagesWithRole: Message[], systemCommands: string[] | null): Message[] {
-    if (!systemCommands || systemCommands.length === 0) {
-      return messagesWithRole;
-    }
-
-    // Add system commands to the beginning of the list
-    const systemMessages = systemCommands.map((command) => ({
-      role: "system",
-      content: command,
-    }));
-
-    return [...systemMessages, ...messagesWithRole];
-  }
-
-  /**
-   * Format a message for display
-   */
-  formatMessage(message: Message, headingLevel: number, model?: string): string {
-    const headingPrefix = getHeadingPrefix(headingLevel);
-    const roleHeader = getHeaderRole(headingPrefix, message.role, model);
-    return `${roleHeader}${message.content}`;
-  }
-
-  /**
-   * Append a message to the editor
-   */
-  appendMessage(editor: Editor, message: string, headingLevel: number): void {
-    const headingPrefix = getHeadingPrefix(headingLevel);
-    const assistantRoleHeader = getHeaderRole(headingPrefix, ROLE_ASSISTANT);
-    const userRoleHeader = getHeaderRole(headingPrefix, ROLE_USER);
-
-    editor.replaceRange(`${assistantRoleHeader}${message}${userRoleHeader}`, editor.getCursor());
-  }
-
-  /**
    * Process an AI response and update the editor
    */
-  processResponse(editor: Editor, response: any, settings: ChatGPT_MDSettings): void {
+  processResponse(editor: Editor, response: AiResponse, settings: ChatGPT_MDSettings): void {
     if (response.mode === "streaming") {
       // Only add user section if streaming was not aborted
       if (!response.wasAborted) {
@@ -200,16 +131,9 @@ export class MessageService {
   /**
    * Process a standard (non-streaming) response
    */
-  private processStandardResponse(editor: Editor, response: any, settings: ChatGPT_MDSettings): void {
-    let responseStr: string;
-    let model: string | undefined;
-
-    if (typeof response === "object" && response !== null) {
-      responseStr = response.fullString || JSON.stringify(response.text || response) || "[No response]";
-      model = response.model;
-    } else {
-      responseStr = String(response || "[No response]");
-    }
+  private processStandardResponse(editor: Editor, response: AiResponse, settings: ChatGPT_MDSettings): void {
+    const responseStr = response.fullString || "[No response]";
+    const model = response.model;
 
     const headingPrefix = getHeadingPrefix(settings.headingLevel);
     const assistantHeader = getHeaderRole(headingPrefix, ROLE_ASSISTANT, model);

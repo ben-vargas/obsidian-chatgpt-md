@@ -19,7 +19,7 @@ import {
   DEFAULT_ZAI_CONFIG,
 } from "src/Services/DefaultConfigs";
 import { ProviderAdapter } from "src/Services/Adapters/ProviderAdapter";
-import { ProviderFactory } from "src/Types/AiTypes";
+import { ProviderFactory } from "src/Types/ProviderTypes";
 import { OpenAIAdapter } from "src/Services/Adapters/OpenAIAdapter";
 import { AnthropicAdapter } from "src/Services/Adapters/AnthropicAdapter";
 import { GeminiAdapter } from "src/Services/Adapters/GeminiAdapter";
@@ -42,11 +42,13 @@ export interface ProviderDefinition {
   id: AiServiceType;
   label: string;
   requiresApiKey: boolean;
+  local: boolean;
   apiKeySetting?: ApiKeySettingKey;
   urlSetting: UrlSettingKey;
   defaultUrl: string;
+  defaultConfig: Record<string, unknown>;
   createAdapter: () => ProviderAdapter;
-  createProviderFactory: () => ProviderFactory;
+  createProviderFactory: (baseUrl?: string) => ProviderFactory;
   getFrontmatterFields: (settings: ChatGPT_MDSettings) => Record<string, unknown>;
 }
 
@@ -55,8 +57,10 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     id: AI_SERVICE_OLLAMA,
     label: "Ollama",
     requiresApiKey: false,
+    local: true,
     urlSetting: "ollamaUrl",
     defaultUrl: DEFAULT_OLLAMA_CONFIG.url,
+    defaultConfig: DEFAULT_OLLAMA_CONFIG,
     createAdapter: () => new OllamaAdapter(),
     createProviderFactory: () => createOpenAICompatible as ProviderFactory,
     getFrontmatterFields: (settings) => ({
@@ -69,9 +73,11 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     id: AI_SERVICE_OPENAI,
     label: "OpenAI",
     requiresApiKey: true,
+    local: false,
     apiKeySetting: "apiKey",
     urlSetting: "openaiUrl",
     defaultUrl: DEFAULT_OPENAI_CONFIG.url,
+    defaultConfig: DEFAULT_OPENAI_CONFIG,
     createAdapter: () => new OpenAIAdapter(),
     createProviderFactory: () => createOpenAI as ProviderFactory,
     getFrontmatterFields: (settings) => ({
@@ -87,9 +93,11 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     id: AI_SERVICE_OPENROUTER,
     label: "OpenRouter",
     requiresApiKey: true,
+    local: false,
     apiKeySetting: "openrouterApiKey",
     urlSetting: "openrouterUrl",
     defaultUrl: DEFAULT_OPENROUTER_CONFIG.url,
+    defaultConfig: DEFAULT_OPENROUTER_CONFIG,
     createAdapter: () => new OpenRouterAdapter(),
     createProviderFactory: () => createOpenRouter as ProviderFactory,
     getFrontmatterFields: (settings) => ({
@@ -105,8 +113,10 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     id: AI_SERVICE_LMSTUDIO,
     label: "LM Studio",
     requiresApiKey: false,
+    local: true,
     urlSetting: "lmstudioUrl",
     defaultUrl: DEFAULT_LMSTUDIO_CONFIG.url,
+    defaultConfig: DEFAULT_LMSTUDIO_CONFIG,
     createAdapter: () => new LmStudioAdapter(),
     createProviderFactory: () => createOpenAICompatible as ProviderFactory,
     getFrontmatterFields: (settings) => ({
@@ -121,9 +131,11 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     id: AI_SERVICE_ANTHROPIC,
     label: "Anthropic",
     requiresApiKey: true,
+    local: false,
     apiKeySetting: "anthropicApiKey",
     urlSetting: "anthropicUrl",
     defaultUrl: DEFAULT_ANTHROPIC_CONFIG.url,
+    defaultConfig: DEFAULT_ANTHROPIC_CONFIG,
     createAdapter: () => new AnthropicAdapter(),
     createProviderFactory: () => createAnthropic as ProviderFactory,
     getFrontmatterFields: (settings) => ({
@@ -137,9 +149,11 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     id: AI_SERVICE_GEMINI,
     label: "Gemini",
     requiresApiKey: true,
+    local: false,
     apiKeySetting: "geminiApiKey",
     urlSetting: "geminiUrl",
     defaultUrl: DEFAULT_GEMINI_CONFIG.url,
+    defaultConfig: DEFAULT_GEMINI_CONFIG,
     createAdapter: () => new GeminiAdapter(),
     createProviderFactory: () => createGoogleGenerativeAI as ProviderFactory,
     getFrontmatterFields: (settings) => ({
@@ -154,11 +168,14 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     id: AI_SERVICE_ZAI,
     label: "Z.AI",
     requiresApiKey: true,
+    local: false,
     apiKeySetting: "zaiApiKey",
     urlSetting: "zaiUrl",
     defaultUrl: DEFAULT_ZAI_CONFIG.url,
+    defaultConfig: DEFAULT_ZAI_CONFIG,
     createAdapter: () => new ZaiAdapter(),
-    createProviderFactory: () => createOpenAICompatible as ProviderFactory,
+    createProviderFactory: (baseUrl) =>
+      (baseUrl?.includes("/api/anthropic") ? createAnthropic : createOpenAICompatible) as ProviderFactory,
     getFrontmatterFields: (settings) => ({
       model: settings.zaiDefaultModel,
       url: settings.zaiUrl,
@@ -203,6 +220,6 @@ export function getProviderFrontmatterFields(
   return findProviderDefinition(providerId)?.getFrontmatterFields(settings) || {};
 }
 
-export function getProviderFactory(providerId: AiServiceType): ProviderFactory {
-  return getProviderDefinition(providerId).createProviderFactory();
+export function getProviderFactory(providerId: AiServiceType, baseUrl?: string): ProviderFactory {
+  return getProviderDefinition(providerId).createProviderFactory(baseUrl);
 }

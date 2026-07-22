@@ -4,6 +4,10 @@ import { ChatGPT_MDSettings } from "src/Models/Config";
 import { ServiceContainer } from "src/core/ServiceContainer";
 import { AGENT_WIZARD_SYSTEM_PROMPT } from "src/Constants";
 import { getDefaultApiUrls } from "src/Commands/CommandUtilities";
+import { AI_SERVICE_OPENAI } from "src/Constants";
+import { aiProviderFromUrl } from "src/Utilities/ProviderHelpers";
+import { parseAgentWizardResponse } from "src/Utilities/AgentWizardHelpers";
+import { Logger } from "src/Utilities/Logger";
 
 type WizardStep = "mode-select" | "wizard-input" | "wizard-loading" | "manual-form";
 
@@ -374,7 +378,7 @@ export class CreateAgentModal extends Modal {
 
     try {
       const response = await this.callAiForAgentConfig();
-      const parsed = this.parseWizardResponse(response);
+      const parsed = parseAgentWizardResponse(response);
 
       if (!parsed) {
         new Notice("Could not parse AI response. Please try again.");
@@ -390,7 +394,7 @@ export class CreateAgentModal extends Modal {
 
       this.navigateTo("manual-form");
     } catch (error) {
-      console.error("[ChatGPT MD] AI wizard error:", error);
+      Logger.error("[ChatGPT MD] AI wizard error", { error });
       new Notice(`AI wizard error: ${error instanceof Error ? error.message : String(error)}`);
       this.navigateTo("wizard-input");
     }
@@ -399,7 +403,7 @@ export class CreateAgentModal extends Modal {
   private async callAiForAgentConfig(): Promise<string> {
     const services = this.services!;
     const aiService = services.aiProviderService();
-    const providerType = this.getProviderTypeFromModel(this.wizardModel);
+    const providerType = aiProviderFromUrl(undefined, this.wizardModel) || AI_SERVICE_OPENAI;
     const apiKey = services.apiAuthService.getApiKey(this.settings, providerType);
     const urls = getDefaultApiUrls(this.settings);
     const url = urls[providerType] || "";
@@ -423,52 +427,6 @@ export class CreateAgentModal extends Modal {
     return result.fullString;
   }
 
-  private getProviderTypeFromModel(model: string): string {
-    const prefixes = ["ollama", "openrouter", "lmstudio", "anthropic", "gemini", "zai"];
-    for (const prefix of prefixes) {
-      if (model.startsWith(`${prefix}@`)) {
-        return prefix;
-      }
-    }
-    return "openai";
-  }
-
-  private parseWizardResponse(response: string): { name: string; temperature: number; prompt: string } | null {
-    const cleaned = response
-      .replace(/```json\s*/g, "")
-      .replace(/```\s*/g, "")
-      .trim();
-
-    try {
-      const parsed = JSON.parse(cleaned);
-      if (
-        typeof parsed.name === "string" &&
-        typeof parsed.temperature === "number" &&
-        typeof parsed.prompt === "string"
-      ) {
-        return { name: parsed.name, temperature: parsed.temperature, prompt: parsed.prompt };
-      }
-    } catch {
-      // Try to extract JSON from within the response
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (
-            typeof parsed.name === "string" &&
-            typeof parsed.temperature === "number" &&
-            typeof parsed.prompt === "string"
-          ) {
-            return { name: parsed.name, temperature: parsed.temperature, prompt: parsed.prompt };
-          }
-        } catch {
-          /* fallthrough */
-        }
-      }
-    }
-    return null;
-  }
-
   // ── Agent Creation ────────────────────────────────────────
 
   private async handleCreate(): Promise<void> {
@@ -487,7 +445,7 @@ export class CreateAgentModal extends Modal {
       new Notice(`Agent "${this.name}" created`);
       this.close();
     } catch (error) {
-      console.error("[ChatGPT MD] Error creating agent:", error);
+      Logger.error("[ChatGPT MD] Error creating agent", { error });
       new Notice(`[ChatGPT MD] Error creating agent: ${(error as Error).message}`);
     }
   }

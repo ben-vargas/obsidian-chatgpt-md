@@ -1,22 +1,34 @@
 {
   "name": "chatgpt-md",
   "version": "3.1.0",
-  "description": "A seamless integration of openAIs GPT LLMs and Ollama into Obsidian.",
+  "description": "Chat with cloud and local AI providers directly in Obsidian notes.",
   "main": "main.js",
   "type": "module",
   "private": true,
+  "license": "MIT",
+  "author": "Deniz Okcu (created by Bram Adams)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bramses/chatgpt-md.git"
+  },
+  "homepage": "https://github.com/bramses/chatgpt-md#readme",
+  "bugs": {
+    "url": "https://github.com/bramses/chatgpt-md/issues"
+  },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-    "build:analyze": "tsc -noEmit -skipLibCheck && ANALYZE=true node esbuild.config.mjs production",
-    "build:size": "yarn build && du -h main.js",
+    "typecheck": "tsc --noEmit --skipLibCheck",
+    "build": "npm run typecheck && node esbuild.config.mjs production",
+    "build:analyze": "npm run typecheck && ANALYZE=true node esbuild.config.mjs production",
+    "build:size": "npm run build && du -h main.js",
     "analyze": "node scripts/analyze-bundle.mjs",
-    "build:full-analysis": "yarn build && yarn analyze",
+    "build:full-analysis": "npm run build && npm run analyze",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
+    "format:check": "prettier --check 'src/**/*.ts'",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
@@ -24,8 +36,14 @@
     "version": "node version-bump.mjs && git add manifest.json versions.json",
     "update-version": "node update-version.mjs"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "obsidian",
+    "ai",
+    "llm",
+    "openai",
+    "anthropic",
+    "ollama"
+  ],
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.18",
     "@ai-sdk/google": "^4.0.21",

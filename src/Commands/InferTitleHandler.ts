@@ -3,6 +3,7 @@ import { ServiceContainer } from "src/core/ServiceContainer";
 import { AI_SERVICE_OPENROUTER, INFER_TITLE_COMMAND_ID } from "src/Constants";
 import { getAiApiUrls } from "./CommandUtilities";
 import { CommandMetadata, EditorViewCommandHandler, StatusBarManager } from "./CommandHandler";
+import { AbortableAiService } from "./StopStreamingHandler";
 
 /**
  * Handler for inferring titles from conversations
@@ -12,7 +13,10 @@ export class InferTitleHandler implements EditorViewCommandHandler {
 
   constructor(
     private services: ServiceContainer,
-    private stopStreamingHandler: { setCurrentAiService: (aiService: any) => void }
+    private stopStreamingHandler: {
+      setCurrentAiService: (aiService: AbortableAiService) => void;
+      clearCurrentAiService: (aiService: AbortableAiService) => void;
+    }
   ) {
     this.statusBarManager = new StatusBarManager(services.plugin);
   }
@@ -22,11 +26,8 @@ export class InferTitleHandler implements EditorViewCommandHandler {
     const settings = settingsService.getSettings();
 
     // Get frontmatter
-    const frontmatter = await editorService.getFrontmatter(view, settings, this.services.app);
+    const frontmatter = await editorService.getFrontmatter(view);
     const aiService = this.services.aiProviderService();
-
-    // Store the AI service for stop streaming
-    this.stopStreamingHandler.setCurrentAiService(aiService);
 
     // Ensure model is set
     if (!frontmatter.model) {
@@ -35,18 +36,22 @@ export class InferTitleHandler implements EditorViewCommandHandler {
     }
 
     this.statusBarManager.setText(`Calling ${frontmatter.model}`);
-    const { messages } = await editorService.getMessagesFromEditor(editor, settings);
+    this.stopStreamingHandler.setCurrentAiService(aiService);
 
-    // Use the utility function to get the correct API key
-    const settingsWithApiKey = {
-      ...settings,
-      ...frontmatter,
-      openrouterApiKey: apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER),
-      url: getAiApiUrls(frontmatter)[frontmatter.aiService],
-    };
+    try {
+      const { messages } = await editorService.getMessagesFromEditor(editor, settings);
+      const settingsWithApiKey = {
+        ...settings,
+        ...frontmatter,
+        openrouterApiKey: apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER),
+        url: frontmatter.url || getAiApiUrls(frontmatter)[frontmatter.aiService],
+      };
 
-    await aiService.inferTitle(view, settingsWithApiKey, messages, editorService);
-    this.statusBarManager.clear();
+      await aiService.inferTitle(view, settingsWithApiKey, messages, editorService);
+    } finally {
+      this.stopStreamingHandler.clearCurrentAiService(aiService);
+      this.statusBarManager.clear();
+    }
   }
 
   getCommand(): CommandMetadata {

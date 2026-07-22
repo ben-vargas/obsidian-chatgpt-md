@@ -1,6 +1,7 @@
 import { App, MarkdownView, Notice, SuggestModal, TFile } from "obsidian";
 import { AgentService } from "src/Services/AgentService";
 import { SettingsService } from "src/Services/SettingsService";
+import { Logger } from "src/Utilities/Logger";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 
 interface AgentItem {
@@ -42,7 +43,11 @@ export class AgentSuggestModal extends SuggestModal<AgentItem> {
     el.createEl("div", { text: agent.title });
   }
 
-  async onChooseSuggestion(agent: AgentItem): Promise<void> {
+  onChooseSuggestion(agent: AgentItem): void {
+    void this.applyAgent(agent);
+  }
+
+  private async applyAgent(agent: AgentItem): Promise<void> {
     try {
       const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (!activeView) {
@@ -50,11 +55,11 @@ export class AgentSuggestModal extends SuggestModal<AgentItem> {
         return;
       }
 
-      await this.settingsService.updateFrontmatterField(activeView.editor, "agent", agent.title);
+      await this.settingsService.updateFrontmatterField("agent", agent.title);
       new Notice(`Agent set to "${agent.title}"`);
     } catch (error) {
-      console.error("[ChatGPT MD] Error setting agent:", error);
-      new Notice(`[ChatGPT MD] Error setting agent: ${error.message}`);
+      Logger.error("[ChatGPT MD] Error setting agent", { error });
+      new Notice(`[ChatGPT MD] Error setting agent: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

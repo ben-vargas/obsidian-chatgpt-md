@@ -46,17 +46,10 @@ export class WebSearchService {
         },
       });
 
-      const data = response.json;
-
-      return (
-        data.web?.results?.map((result: any) => ({
-          title: result.title,
-          url: result.url,
-          snippet: result.description,
-        })) || []
-      );
+      const data: unknown = response.json;
+      return this.getBraveResults(data);
     } catch (error) {
-      console.error("[ChatGPT MD] Brave search error:", error);
+      Logger.error("[ChatGPT MD] Brave search error", { error });
       this.notificationService.showWarning("Web search failed. Check your API key.");
       return [];
     }
@@ -93,20 +86,43 @@ export class WebSearchService {
       }
 
       const response = await requestUrl({ url, method: "GET", headers });
-      const data = response.json;
-
-      return (
-        data.results?.slice(0, limit).map((result: any) => ({
-          title: result.title || "Untitled",
-          url: result.url || result.link || "",
-          snippet: result.snippet || result.description || "",
-        })) || []
-      );
+      const data: unknown = response.json;
+      return this.getResultRecords(data, "results")
+        .slice(0, limit)
+        .map((result) => ({
+          title: this.stringValue(result.title) || "Untitled",
+          url: this.stringValue(result.url) || this.stringValue(result.link),
+          snippet: this.stringValue(result.snippet) || this.stringValue(result.description),
+        }));
     } catch (error) {
-      console.error("[ChatGPT MD] Custom search error:", error);
+      Logger.error("[ChatGPT MD] Custom search error", { error });
       this.notificationService.showWarning("Custom web search failed. Check your endpoint configuration.");
       return [];
     }
+  }
+
+  private getBraveResults(data: unknown): WebSearchResult[] {
+    if (!data || typeof data !== "object") return [];
+    const web = (data as Record<string, unknown>).web;
+    if (!web || typeof web !== "object") return [];
+
+    return this.getResultRecords(web, "results").map((result) => ({
+      title: this.stringValue(result.title) || "Untitled",
+      url: this.stringValue(result.url),
+      snippet: this.stringValue(result.description),
+    }));
+  }
+
+  private getResultRecords(data: unknown, key: string): Array<Record<string, unknown>> {
+    if (!data || typeof data !== "object") return [];
+    const value = (data as Record<string, unknown>)[key];
+    return Array.isArray(value)
+      ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+      : [];
+  }
+
+  private stringValue(value: unknown): string {
+    return typeof value === "string" ? value : "";
   }
 
   /**

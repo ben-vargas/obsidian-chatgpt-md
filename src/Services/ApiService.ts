@@ -1,11 +1,5 @@
 import { requestUrl } from "obsidian";
-import { ApiAuthService } from "./ApiAuthService";
-import { ErrorService } from "./ErrorService";
-import { NotificationService } from "./NotificationService";
 import { requestStream } from "./requestStream";
-import { parseNonStreamingResponse } from "src/Utilities/ResponseHelpers";
-import { validateNonEmpty, validateUrl } from "src/Utilities/InputValidator";
-
 import { Logger } from "src/Utilities/Logger";
 /**
  * ApiService handles all API communication for the application
@@ -14,63 +8,6 @@ import { Logger } from "src/Utilities/Logger";
 export class ApiService {
   private abortController: AbortController | null = null;
   private wasStreamingAborted: boolean = false;
-  private errorService: ErrorService;
-  private notificationService: NotificationService;
-  private apiAuthService: ApiAuthService;
-
-  constructor(errorService?: ErrorService, notificationService?: NotificationService, apiAuthService?: ApiAuthService) {
-    this.notificationService = notificationService || new NotificationService();
-    this.errorService = errorService || new ErrorService(this.notificationService);
-    this.apiAuthService = apiAuthService || new ApiAuthService();
-  }
-
-  /**
-   * Make a non-streaming API request
-   * @param url The API endpoint URL
-   * @param payload The request payload
-   * @param headers The request headers
-   * @param serviceType The AI service type (openai, openrouter, ollama)
-   * @returns The parsed response data
-   */
-  async makeNonStreamingRequest(
-    url: string,
-    payload: any,
-    headers: Record<string, string>,
-    serviceType: string
-  ): Promise<any> {
-    try {
-      // Validate input parameters
-      validateUrl(url);
-      validateNonEmpty(serviceType, "Service type");
-
-      const responseUrl = await requestUrl({
-        url,
-        method: "POST",
-        headers,
-        contentType: "application/json",
-        body: JSON.stringify(payload),
-        throw: false,
-      });
-
-      const data = responseUrl.json;
-
-      if (data?.error) {
-        return this.errorService.handleApiError({ error: data.error }, serviceType, {
-          returnForChat: true,
-          showNotification: true,
-          context: { model: payload.model, url },
-        });
-      }
-
-      return parseNonStreamingResponse(data, serviceType);
-    } catch (error) {
-      return this.errorService.handleApiError(error, serviceType, {
-        returnForChat: true,
-        showNotification: true,
-        context: { model: payload.model, url },
-      });
-    }
-  }
 
   /**
    * Make a GET request to fetch data
@@ -79,7 +16,7 @@ export class ApiService {
    * @param serviceType The AI service type (openai, openrouter, ollama)
    * @returns The parsed response data
    */
-  async makeGetRequest(url: string, headers: Record<string, string>, _serviceType: string): Promise<any> {
+  async makeGetRequest(url: string, headers: Record<string, string>, _serviceType: string): Promise<unknown> {
     const responseObj = await requestUrl({
       url,
       method: "GET",
@@ -92,38 +29,6 @@ export class ApiService {
     }
 
     return responseObj.json;
-  }
-
-  /**
-   * Handle HTTP errors from responses
-   */
-  private async handleHttpError(response: Response, serviceType: string, payload: any, url: string): Promise<Error> {
-    let errorData: any;
-
-    try {
-      errorData = await response.json();
-    } catch (_) {
-      errorData = { status: response.status, statusText: response.statusText };
-    }
-
-    const error = this.errorService.handleApiError(errorData, serviceType, {
-      returnForChat: false,
-      showNotification: true,
-      context: { model: payload.model, url, status: response.status },
-    });
-
-    return new Error(error);
-  }
-
-  /**
-   * Handle request errors
-   */
-  private handleRequestError(error: any, serviceType: string, payload: any, url: string): never {
-    return this.errorService.handleApiError(error, serviceType, {
-      returnForChat: false,
-      showNotification: true,
-      context: { model: payload.model, url },
-    }) as never;
   }
 
   /**
@@ -154,20 +59,13 @@ export class ApiService {
   }
 
   /**
-   * Reset the aborted flag
-   */
-  resetAbortedFlag(): void {
-    this.wasStreamingAborted = false;
-  }
-
-  /**
    * Create a fetch-compatible function that uses requestStream
    * This allows third-party libraries (like AI SDK) to use Obsidian's requestUrl under the hood
    * @returns A fetch-compatible function
    */
   createFetchAdapter(): typeof fetch {
     return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const url = this.resolveUrl(input);
 
       Logger.debug(`[ChatGPT MD] Fetch adapter CALLED`, {
         url,
@@ -179,12 +77,8 @@ export class ApiService {
       const requestOptions = {
         url,
         method: init?.method || "GET",
-        headers: init?.headers
-          ? typeof init.headers === "object" && "forEach" in init.headers
-            ? this.convertHeadersToRecord(init.headers as Headers)
-            : (init.headers as Record<string, string>)
-          : {},
-        body: init?.body ? (typeof init.body === "string" ? init.body : JSON.stringify(init.body)) : undefined,
+        headers: this.normalizeHeaders(init?.headers),
+        body: this.normalizeBody(init?.body),
         signal: init?.signal || undefined,
       };
 
@@ -201,21 +95,31 @@ export class ApiService {
           ok: response.ok,
         });
         return response;
-      } catch (error: any) {
-        console.error(`[ChatGPT MD] requestStream error:`, error);
+      } catch (error: unknown) {
+        Logger.error("[ChatGPT MD] Streaming request failed", { error, url });
         throw error;
       }
     };
   }
 
-  /**
-   * Convert Headers object to plain Record
-   */
-  private convertHeadersToRecord(headers: Headers): Record<string, string> {
-    const record: Record<string, string> = {};
-    headers.forEach((value, key) => {
-      record[key] = value;
+  private resolveUrl(input: RequestInfo | URL): string {
+    if (typeof input === "string") return input;
+    return input instanceof URL ? input.toString() : input.url;
+  }
+
+  private normalizeHeaders(headers?: HeadersInit): Record<string, string> {
+    if (!headers) return {};
+    const result: Record<string, string> = {};
+    new Headers(headers).forEach((value, key) => {
+      result[key] = value;
     });
-    return record;
+    return result;
+  }
+
+  private normalizeBody(body?: BodyInit | null): string | undefined {
+    if (body === undefined || body === null) return undefined;
+    if (typeof body === "string") return body;
+    if (body instanceof URLSearchParams) return body.toString();
+    throw new TypeError("Unsupported streaming request body type");
   }
 }

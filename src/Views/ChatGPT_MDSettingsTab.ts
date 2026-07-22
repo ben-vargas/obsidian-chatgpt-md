@@ -1,10 +1,49 @@
-import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { COLLAPSIBLE_GROUPS, createSettingsSchema, SettingDefinition } from "./settingsSchema";
 
 interface SettingsProvider {
   settings: ChatGPT_MDSettings;
+  updateSettings: (settings: Partial<ChatGPT_MDSettings>) => void;
   saveSettings: () => Promise<void>;
+}
+
+const NUMERIC_RANGES: Partial<Record<keyof ChatGPT_MDSettings, { min: number; max: number }>> = {
+  headingLevel: { min: 0, max: 6 },
+  maxWebSearchResults: { min: 1, max: 10 },
+  openaiDefaultTemperature: { min: 0, max: 2 },
+  anthropicDefaultTemperature: { min: 0, max: 1 },
+  geminiDefaultTemperature: { min: 0, max: 2 },
+  openrouterDefaultTemperature: { min: 0, max: 2 },
+  zaiDefaultTemperature: { min: 0, max: 1 },
+  ollamaDefaultTemperature: { min: 0, max: 2 },
+  lmstudioDefaultTemperature: { min: 0, max: 2 },
+  openaiDefaultTopP: { min: 0, max: 1 },
+  geminiDefaultTopP: { min: 0, max: 1 },
+  openrouterDefaultTopP: { min: 0, max: 1 },
+  ollamaDefaultTopP: { min: 0, max: 1 },
+  lmstudioDefaultTopP: { min: 0, max: 1 },
+  openaiDefaultPresencePenalty: { min: -2, max: 2 },
+  openaiDefaultFrequencyPenalty: { min: -2, max: 2 },
+  openrouterDefaultPresencePenalty: { min: -2, max: 2 },
+  openrouterDefaultFrequencyPenalty: { min: -2, max: 2 },
+  lmstudioDefaultPresencePenalty: { min: -2, max: 2 },
+  lmstudioDefaultFrequencyPenalty: { min: -2, max: 2 },
+};
+
+export function parseSettingValue(schema: SettingDefinition, value: string | boolean): string | number | boolean {
+  if (schema.valueType !== "number") return value;
+
+  const parsedValue = typeof value === "string" && value.trim() !== "" ? Number(value) : Number.NaN;
+  const range = NUMERIC_RANGES[schema.id];
+  const outsideRange = range && (parsedValue < range.min || parsedValue > range.max);
+
+  if (!Number.isFinite(parsedValue) || outsideRange) {
+    const rangeDescription = range ? ` between ${range.min} and ${range.max}` : "";
+    throw new Error(`${schema.name} must be a valid number${rangeDescription}.`);
+  }
+
+  return parsedValue;
 }
 
 export class ChatGPT_MDSettingsTab extends PluginSettingTab {
@@ -19,7 +58,7 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
    * Type-safe helper method to update settings
    */
   private updateSetting<K extends keyof ChatGPT_MDSettings>(key: K, value: ChatGPT_MDSettings[K]): void {
-    this.settingsProvider.settings[key] = value;
+    this.settingsProvider.updateSettings({ [key]: value });
   }
 
   display(): void {
@@ -188,8 +227,12 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
   }
 
   private async saveSetting(schema: SettingDefinition, value: string | boolean): Promise<void> {
-    const parsedValue = schema.valueType === "number" ? Number(value) : value;
-    this.updateSetting(schema.id, parsedValue as ChatGPT_MDSettings[typeof schema.id]);
-    await this.settingsProvider.saveSettings();
+    try {
+      const parsedValue = parseSettingValue(schema, value);
+      this.updateSetting(schema.id, parsedValue as ChatGPT_MDSettings[typeof schema.id]);
+      await this.settingsProvider.saveSettings();
+    } catch (error) {
+      new Notice(error instanceof Error ? error.message : `Invalid value for ${schema.name}`);
+    }
   }
 }

@@ -44,9 +44,6 @@ export const extractRoleAndMessage = (message: string) => {
   }
 };
 
-// Re-export from MessageHelpers with legacy name for backward compatibility
-export { removeCommentBlocks as removeCommentsFromMessages } from "./MessageHelpers";
-
 export const getHeadingPrefix = (headingLevel: number) => {
   if (headingLevel === 0) {
     return "";
@@ -59,14 +56,6 @@ export const getHeadingPrefix = (headingLevel: number) => {
 export const getHeaderRole = (headingPrefix: string, role: string, model?: string) =>
   `${NEWLINE}${HORIZONTAL_LINE_MD}${NEWLINE}${headingPrefix}${ROLE_IDENTIFIER}${role}${model ? `<span style="font-size: small;"> (${model})</span>` : ``}${NEWLINE}`;
 
-// Re-export from YamlHelpers for backward compatibility
-export { parseSettingsFrontmatter } from "./YamlHelpers";
-
 export const escapeRegExp = (string: string): string => {
   return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
-
-export const splitMessages = (text: string | undefined): string[] => (text ? text.split(HORIZONTAL_LINE_MD) : []);
-
-// Re-export from YamlHelpers for backward compatibility
-export { removeYAMLFrontMatter } from "./YamlHelpers";

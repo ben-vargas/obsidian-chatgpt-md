@@ -1,9 +1,11 @@
-import { App, Editor, MarkdownView, Notice } from "obsidian";
+import { App, Editor, MarkdownView } from "obsidian";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { ChatTemplatesSuggestModal } from "src/Views/ChatTemplatesSuggestModal";
 import { CHAT_FOLDER_TYPE, CHAT_TEMPLATE_FOLDER_TYPE } from "src/Constants";
 import { FileService } from "./FileService";
-import { EditorService } from "./EditorService";
+import { moveCursorToEnd } from "src/Utilities/EditorHelpers";
+import { Logger } from "src/Utilities/Logger";
+import { NotificationService } from "./NotificationService";
 
 /**
  * Service responsible for template management
@@ -12,7 +14,7 @@ export class TemplateService {
   constructor(
     private app: App,
     private fileService: FileService,
-    private editorService: EditorService
+    private notificationService: NotificationService
   ) {}
 
   /**
@@ -21,12 +23,12 @@ export class TemplateService {
   async createNewChatFromTemplate(settings: ChatGPT_MDSettings, fileName: string): Promise<void> {
     try {
       if (!settings.chatFolder || settings.chatFolder.trim() === "") {
-        new Notice(`[ChatGPT MD] No chat folder value found. Please set one in settings.`);
+        this.notificationService.showWarning("No chat folder configured. Please set one in settings.");
         return;
       }
 
       if (!settings.chatTemplateFolder || settings.chatTemplateFolder.trim() === "") {
-        new Notice(`[ChatGPT MD] No chat template folder value found. Please set one in settings.`);
+        this.notificationService.showWarning("No chat template folder configured. Please set one in settings.");
         return;
       }
 
@@ -45,8 +47,8 @@ export class TemplateService {
 
       new ChatTemplatesSuggestModal(this.app, settings, fileName).open();
     } catch (err) {
-      console.error(`[ChatGPT MD] Error in Create new chat from template`, err);
-      new Notice(`[ChatGPT MD] Error in Create new chat from template, check console`);
+      Logger.error("[ChatGPT MD] Error creating chat from template", { error: err });
+      this.notificationService.showError("Could not create chat from template. Check the console.");
     }
   }
 
@@ -58,7 +60,7 @@ export class TemplateService {
       const selectedText = editor.getSelection();
 
       if (!settings.chatFolder || settings.chatFolder.trim() === "") {
-        new Notice(`[ChatGPT MD] No chat folder value found. Please set one in settings.`);
+        this.notificationService.showWarning("No chat folder configured. Please set one in settings.");
         return;
       }
 
@@ -87,15 +89,15 @@ export class TemplateService {
       const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 
       if (!activeView) {
-        new Notice("No active markdown editor found.");
+        this.notificationService.showWarning("No active markdown editor found.");
         return;
       }
 
       activeView.editor.focus();
-      this.editorService.moveCursorToEnd(activeView.editor);
+      moveCursorToEnd(activeView.editor);
     } catch (err) {
-      console.error(`[ChatGPT MD] Error in Create new chat with highlighted text`, err);
-      new Notice(`[ChatGPT MD] Error in Create new chat with highlighted text, check console`);
+      Logger.error("[ChatGPT MD] Error creating chat with highlighted text", { error: err });
+      this.notificationService.showError("Could not create chat from highlighted text. Check the console.");
     }
   }
 }

@@ -10,15 +10,10 @@ export class MoveToNewChatHandler implements EditorCommandHandler {
   constructor(private services: ServiceContainer) {}
 
   async execute(editor: Editor): Promise<void> {
-    const { editorService, settingsService } = this.services;
+    const { templateService, settingsService } = this.services;
     const settings = settingsService.getSettings();
 
-    try {
-      await editorService.createNewChatWithHighlightedText(editor, settings);
-    } catch (err) {
-      console.error(`[ChatGPT MD] Error in Create new chat with highlighted text`, err);
-      new Notice(`[ChatGPT MD] Error in Create new chat with highlighted text, check console`);
-    }
+    await templateService.createNewChatWithHighlightedText(editor, settings);
   }
 
   getCommand(): CommandMetadata {
@@ -37,11 +32,14 @@ export class ChooseChatTemplateHandler implements CallbackCommandHandler {
   constructor(private services: ServiceContainer) {}
 
   async execute(): Promise<void> {
-    const { editorService, settingsService } = this.services;
+    const { fileService, templateService, settingsService } = this.services;
     const settings = settingsService.getSettings();
 
     if (settings.dateFormat) {
-      await editorService.createNewChatFromTemplate(settings, editorService.getDate(new Date(), settings.dateFormat));
+      await templateService.createNewChatFromTemplate(
+        settings,
+        fileService.formatDate(new Date(), settings.dateFormat)
+      );
       return;
     }
     new Notice("date format cannot be empty in your ChatGPT MD settings. You can choose something like YYYYMMDDhhmmss");

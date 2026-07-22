@@ -3,36 +3,40 @@
 ## Prerequisites
 
 - Node.js 22 or newer (AI SDK 7 requirement); Node.js 24 LTS is used in CI
-- Yarn 1.x
+- npm 10 or newer (bundled with Node.js 24)
 
 AI SDK 7 packages are ESM-only. Source code and build scripts use ESM imports, while esbuild bundles dependencies into the CommonJS `main.js` format required by Obsidian.
 
 ## Build and Development Commands
 
 ```bash
+# Install exactly from the lockfile
+npm ci
+
 # Development/watch build
-yarn dev
+npm run dev
 
 # Production build with type checking
-yarn build
+npm run build
 
 # Tests
-yarn test --runInBand
-yarn test:watch
-yarn test:coverage
+npm test -- --runInBand
+npm run test:watch
+npm run test:coverage
 
-# Linting
-yarn lint
-yarn lint:fix
+# Linting and formatting
+npm run lint
+npm run lint:fix
+npm run format:check
 
 # Bundle analysis
-yarn build:analyze
-yarn analyze
-yarn build:size
-yarn build:full-analysis
+npm run build:analyze
+npm run analyze
+npm run build:size
+npm run build:full-analysis
 ```
 
-Use Yarn for validation unless package-manager policy changes.
+Use npm for installation and validation. `package-lock.json` is the dependency source of truth.
 
 ## Build process
 
@@ -94,14 +98,7 @@ Use `CommandRegistrar` where possible.
 
 AI providers are represented by adapters in `src/Services/Adapters/` and orchestrated by `AiProviderService`.
 
-Adapters own provider-specific behavior such as:
-
-- auth headers,
-- model list parsing,
-- default base URL,
-- system-message role,
-- API path suffix,
-- tool support flags.
+The provider registry owns operational defaults, credential/URL setting keys, and factories. Adapters own protocol differences such as authentication headers for discovery, defensive model-list parsing, model-name extraction, API path suffixes, and exceptional tool-support behavior.
 
 ### Settings/frontmatter
 
@@ -124,7 +121,7 @@ Adapters own provider-specific behavior such as:
 
 ### Add provider behavior
 
-See `docs/CREATE_SERVICE.md`. Despite the historical filename, provider support now uses adapters rather than one service class per provider.
+See `docs/CREATE_SERVICE.md`. Provider support uses the operational registry plus adapters rather than one service class per provider.
 
 ### Add a setting
 
@@ -139,7 +136,7 @@ See `docs/CREATE_SERVICE.md`. Despite the historical filename, provider support 
 1. Build:
 
    ```bash
-   yarn build
+   npm run build
    ```
 
 2. Reload Obsidian or copy the plugin folder into a test vault's `.obsidian/plugins/chatgpt-md/` folder.
@@ -155,12 +152,4 @@ See `docs/CREATE_SERVICE.md`. Despite the historical filename, provider support 
 
 ## Refactoring guidance
 
-Known maintainability targets are documented in `planning/maintainability-review/`.
-
-Important near-term targets:
-
-- central provider registry,
-- smaller `AiProviderService`,
-- smaller/data-driven settings UI,
-- smaller `ToolService`,
-- debug-gated logging.
+The current maintainability roadmap and completed baseline are documented in `planning/opensource-maintainability/`.

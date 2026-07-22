@@ -32,71 +32,41 @@ export class WebSearchApprovalModal extends BaseApprovalModal<WebSearchApprovalD
   }
 
   protected renderSelectionItems(container: HTMLElement): void {
-    // Results label
-    const resultsLabel = container.createEl("p", { text: "Select which results to share:" });
-    resultsLabel.style.marginTop = "8px";
-    resultsLabel.style.marginBottom = "8px";
-    resultsLabel.style.fontWeight = "500";
-    resultsLabel.style.opacity = "0.7";
+    container.createEl("p", {
+      text: "Select which results to share:",
+      cls: "chatgpt-md-selection-label",
+    });
+    const resultsContainer = container.createDiv({ cls: "chatgpt-md-selection-list" });
+    this.results.forEach((result) => this.renderResultItem(resultsContainer, result));
+  }
 
-    // Results selection container
-    const resultsContainer = container.createDiv();
-    resultsContainer.style.marginBottom = "12px";
+  private renderResultItem(container: HTMLElement, result: WebSearchResult): void {
+    const resultItem = container.createDiv({ cls: "chatgpt-md-selection-item" });
+    const checkbox = resultItem.createEl("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = this.selections.get(result.url) ?? true;
+    checkbox.onchange = () => this.selections.set(result.url, checkbox.checked);
 
-    for (const result of this.results) {
-      const currentValue = this.selections.get(result.url) ?? true;
+    const label = resultItem.createEl("label", { cls: "chatgpt-md-selection-content" });
+    label.createEl("div", { text: result.title, cls: "chatgpt-md-selection-title" });
+    const url = label.createEl("a", {
+      text: result.url,
+      href: result.url,
+      cls: "chatgpt-md-selection-url",
+    });
+    url.setAttr("target", "_blank");
 
-      const resultItem = resultsContainer.createDiv();
-      resultItem.style.display = "flex";
-      resultItem.style.alignItems = "flex-start";
-      resultItem.style.padding = "8px";
-      resultItem.style.marginBottom = "8px";
-      resultItem.style.borderRadius = "4px";
-      resultItem.style.backgroundColor = "var(--background-secondary)";
-      resultItem.style.gap = "8px";
-
-      const checkbox = resultItem.createEl("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = currentValue;
-      checkbox.style.marginTop = "2px";
-      checkbox.style.flexShrink = "0";
-      checkbox.onchange = () => {
-        this.selections.set(result.url, checkbox.checked);
-      };
-
-      const label = resultItem.createEl("label");
-      label.style.flex = "1";
-      label.style.cursor = "pointer";
-      label.style.display = "flex";
-      label.style.flexDirection = "column";
-      label.style.gap = "4px";
-
-      const titleEl = label.createEl("div", { text: result.title });
-      titleEl.style.fontWeight = "500";
-      titleEl.style.fontSize = "0.95em";
-
-      const urlEl = label.createEl("a", {
-        text: result.url,
-        href: result.url,
+    if (result.snippet) {
+      label.createEl("div", {
+        text: result.snippet.substring(0, 150) + (result.snippet.length > 150 ? "..." : ""),
+        cls: "chatgpt-md-selection-snippet",
       });
-      urlEl.style.fontSize = "0.8em";
-      urlEl.style.opacity = "0.6";
-      urlEl.setAttr("target", "_blank");
-
-      if (result.snippet) {
-        const snippetEl = label.createEl("div", {
-          text: result.snippet.substring(0, 150) + (result.snippet.length > 150 ? "..." : ""),
-        });
-        snippetEl.style.fontSize = "0.85em";
-        snippetEl.style.opacity = "0.7";
-        snippetEl.style.lineHeight = "1.3";
-      }
-
-      label.onclick = () => {
-        checkbox.checked = !checkbox.checked;
-        this.selections.set(result.url, checkbox.checked);
-      };
     }
+
+    label.onclick = () => {
+      checkbox.checked = !checkbox.checked;
+      this.selections.set(result.url, checkbox.checked);
+    };
   }
 
   protected getControlNoteText(): string {

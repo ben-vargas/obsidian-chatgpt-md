@@ -1,14 +1,6 @@
 import { ChatGPT_MDSettings } from "src/Models/Config";
-import { ProviderModelData, ProviderType } from "./ProviderAdapter";
+import { ProviderType } from "./ProviderAdapter";
 import { BaseProviderAdapter } from "./BaseProviderAdapter";
-
-/**
- * Model data from Gemini API
- */
-interface GeminiModel extends ProviderModelData {
-  name: string;
-  displayName: string;
-}
 
 /**
  * Adapter for Google Gemini API provider
@@ -18,8 +10,8 @@ export class GeminiAdapter extends BaseProviderAdapter {
   readonly type: ProviderType = "gemini";
   readonly displayName = "Gemini";
 
-  getDefaultBaseUrl(): string {
-    return "https://generativelanguage.googleapis.com";
+  override getApiPathSuffix(url?: string): string {
+    return url?.replace(/\/+$/, "").endsWith("/v1beta") ? "" : "/v1beta";
   }
 
   getAuthHeaders(apiKey: string): Record<string, string> {
@@ -33,7 +25,7 @@ export class GeminiAdapter extends BaseProviderAdapter {
     url: string,
     apiKey: string | undefined,
     settings: ChatGPT_MDSettings | undefined,
-    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<any>
+    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<unknown>
   ): Promise<string[]> {
     if (!this.validateApiKey(apiKey)) {
       return [];
@@ -41,26 +33,18 @@ export class GeminiAdapter extends BaseProviderAdapter {
 
     try {
       // Gemini API key is passed as query parameter
-      const modelsUrl = `${url}/v1beta/models?key=${apiKey}`;
+      const baseUrl = url.replace(/\/+$/, "");
+      const modelsUrl = `${baseUrl}${this.getApiPathSuffix(baseUrl)}/models?key=${apiKey}`;
       const headers = this.getAuthHeaders(apiKey!); // Non-null assertion: validated above
       const response = await makeGetRequest(modelsUrl, headers, this.type);
 
-      if (response.models && Array.isArray(response.models)) {
-        return response.models
-          .filter((model: GeminiModel) => model.name && model.name.includes("generate"))
-          .map((model: GeminiModel) => {
-            // Extract model name from full resource path (e.g., "models/gemini-2.0-flash")
-            const modelId = model.name.split("/").pop();
-            if (!modelId) {
-              return null; // Skip models without valid names
-            }
-            return this.prefixModelId(modelId);
-          })
-          .filter((modelId: string | null): modelId is string => modelId !== null)
-          .sort();
-      }
-
-      return [];
+      return this.getObjectArray(response, "models")
+        .map((model) => model.name)
+        .filter((name): name is string => typeof name === "string" && name.includes("generate"))
+        .map((name) => name.split("/").pop())
+        .filter((modelId): modelId is string => Boolean(modelId))
+        .map((modelId) => this.prefixModelId(modelId))
+        .sort();
     } catch (error) {
       this.handleFetchError(error);
       return [];

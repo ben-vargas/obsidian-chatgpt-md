@@ -32,7 +32,7 @@ export default [
       ],
 
       // Type safety rules - warn for now, can upgrade to error later
-      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-call": "off",
@@ -41,9 +41,9 @@ export default [
       "@typescript-eslint/explicit-function-return-type": "off",
 
       // Prevent common async mistakes
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/await-thenable": "off",
+      "@typescript-eslint/no-floating-promises": "warn",
+      "@typescript-eslint/no-misused-promises": "warn",
+      "@typescript-eslint/await-thenable": "warn",
 
       // Code complexity limits
       complexity: ["warn", 15],

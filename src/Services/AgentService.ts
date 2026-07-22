@@ -35,7 +35,7 @@ export class AgentService {
    */
   async readAgent(file: TFile): Promise<AgentData> {
     const content = await this.app.vault.read(file);
-    const frontmatter = (await this.frontmatterManager.readFrontmatter(file)) || {};
+    const frontmatter = this.frontmatterManager.readFrontmatter(file) || {};
     const body = this.extractBody(content);
     return { frontmatter, body };
   }

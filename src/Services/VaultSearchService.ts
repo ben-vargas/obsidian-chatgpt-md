@@ -1,6 +1,7 @@
 import { App, TFile } from "obsidian";
 import { FileService } from "./FileService";
 import { FileReadResult, ToolExecutionContext, VaultSearchResult } from "src/Models/Tool";
+import { Logger } from "src/Utilities/Logger";
 
 /**
  * Maximum number of vault search results to return
@@ -136,7 +137,7 @@ export class VaultSearchService {
             size: file.stat.size,
           });
         } catch (error) {
-          console.error(`[ChatGPT MD] Error reading file ${path}:`, error);
+          Logger.error(`[ChatGPT MD] Error reading file ${path}`, { error });
           results.push({
             path: path,
             content: `Error reading file: ${error}`,

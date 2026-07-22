@@ -13,7 +13,7 @@ import {
   DEFAULT_OPENROUTER_CONFIG,
   DEFAULT_ZAI_CONFIG,
 } from "src/Services/DefaultConfigs";
-import { getDefaultToolWhitelist } from "src/Services/ToolSupportDetector";
+import { getDefaultToolWhitelist } from "./DefaultToolWhitelist";
 
 /**
  * Generate default chat front matter using service provider defaults

@@ -1,193 +1,92 @@
-# Adding an AI Provider
+# Adding an AI provider
 
-> Historical note: this file used to describe a service-per-provider architecture. The current architecture uses one AI facade plus provider adapters.
-
-## Current provider architecture
+ChatGPT MD uses one request facade, an operational provider registry, and provider-specific adapters:
 
 ```text
-ChatHandler / InferTitleHandler / ModelSelectHandler
-        │
-        ▼
-AiProviderService
-        │
-        ├── ProviderAdapter implementations in src/Services/Adapters/
-        ├── AI SDK provider factories
-        ├── ApiAuthService for API keys
-        └── ApiService for fetch/request helpers
+Commands → AiProviderService → ProviderRuntime
+                              ├─ ProviderRegistry
+                              └─ ProviderAdapter
 ```
 
-`AiProviderService` is the public facade used by commands. Provider-specific behavior should live in an adapter implementing `ProviderAdapter`.
+Do not create a service class per provider.
 
-## Provider adapter contract
+## 1. Add the provider ID
 
-The adapter interface lives in `src/Services/Adapters/ProviderAdapter.ts`.
+Add the ID to `src/Constants.ts` and `AI_SERVICES`. Model IDs use `provider@model-name`; unprefixed IDs remain OpenAI-compatible for backward compatibility.
 
-A provider adapter defines:
+## 2. Add persisted defaults
 
-- `type` — provider ID from `AiServiceType`.
-- `displayName` — human-readable provider label.
-- `getDefaultBaseUrl()` — default API base URL.
-- `getAuthHeaders(apiKey)` — headers for model-list/API helper requests.
-- `fetchModels(...)` — model list retrieval and parsing.
-- `getSystemMessageRole()` — usually `system`, OpenAI may use `developer`.
-- `supportsSystemField()` — whether the provider has a separate system field.
-- `supportsToolCalling()` — whether tools are supported.
-- `requiresApiKey()` — false for local providers like Ollama/LM Studio.
-- `extractModelName(modelId)` — remove provider prefix.
-- `getApiPathSuffix(url?)` — API path suffix for AI SDK base URL.
+Update:
 
-Most adapters can extend `BaseProviderAdapter`.
+- `src/Services/DefaultConfigs.ts`
+- `src/Models/Config.ts` settings interfaces and `DEFAULT_SETTINGS`
 
-## Step-by-step provider addition
+Preserve existing setting names. Add a migration only when existing persisted values must be transformed.
 
-Until a central provider registry exists, adding a provider requires coordinated edits.
+## 3. Implement the adapter
 
-### 1. Add constants/types
+Create `src/Services/Adapters/YourProviderAdapter.ts`, normally extending `BaseProviderAdapter`.
 
-Update `src/Constants.ts` with the provider ID if needed.
+The adapter owns protocol differences:
 
-Provider model IDs should use the prefix format:
+- provider `type` and `displayName`;
+- authentication headers used for model discovery;
+- model-list retrieval and defensive response parsing;
+- API key requirement;
+- model-prefix removal;
+- idempotent AI SDK endpoint suffixing;
+- exceptional tool-support behavior, if any.
 
-```text
-provider@model-name
-```
+External JSON enters as `unknown` and must be checked before fields are read. Endpoint suffixes must return an empty string when the configured URL already contains the required path.
 
-Example:
+## 4. Register operational metadata
 
-```text
-openai@gpt-4.1-mini
-anthropic@claude-sonnet-4-20250514
-```
+Add one entry to `src/Services/Providers/ProviderRegistry.ts` containing:
 
-### 2. Add default config
+- ID, label, and local/cloud status;
+- API key and URL setting keys;
+- default URL/config;
+- adapter factory;
+- AI SDK provider factory;
+- default frontmatter fields.
 
-Update `src/Services/DefaultConfigs.ts`.
+Do not add parallel provider maps to commands or utilities. Registry completeness tests must continue to cover every ID in `AI_SERVICES`.
 
-Keep defaults small and provider-specific. Include at least:
+## 5. Add settings UI fields
 
-- `aiService`
-- `model`
-- `url`
-- `stream`
-- `temperature`
-- token limits if supported
+Add provider-specific fields and descriptions to `src/Views/settingsSchema.ts`. Operational metadata belongs in the registry; user-facing prose belongs in the UI schema.
 
-### 3. Add settings fields
+Numeric settings need a documented range in `ChatGPT_MDSettingsTab` parsing. Never save `NaN`.
 
-Update `src/Models/Config.ts`:
+## 6. Add tests
 
-- add API key field if required,
-- add URL field,
-- add provider default model/temperature/token fields,
-- update `ChatGPT_MDSettings`,
-- update `DEFAULT_SETTINGS`.
+At minimum cover:
 
-Preserve backward compatibility for existing settings.
+- registry completeness and adapter creation;
+- provider selection from the model prefix;
+- default/custom/already-suffixed base URLs;
+- model extraction and model-list parsing, including malformed responses;
+- missing credentials versus local discovery;
+- stream/non-stream generation-option mapping;
+- title inference routing;
+- tool declaration behavior if supported.
 
-### 4. Implement an adapter
+Unit tests must mock network/provider SDK boundaries and must not use real API keys.
 
-Create `src/Services/Adapters/YourProviderAdapter.ts`.
+## 7. Update docs
 
-Minimal shape:
-
-```ts
-import { ChatGPT_MDSettings } from "src/Models/Config";
-import { BaseProviderAdapter } from "./BaseProviderAdapter";
-import { ProviderType } from "./ProviderAdapter";
-
-export class YourProviderAdapter extends BaseProviderAdapter {
-  readonly type: ProviderType = "yourprovider";
-  readonly displayName = "Your Provider";
-
-  getDefaultBaseUrl(): string {
-    return "https://api.example.com";
-  }
-
-  getAuthHeaders(apiKey: string): Record<string, string> {
-    return {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    };
-  }
-
-  async fetchModels(
-    url: string,
-    apiKey: string | undefined,
-    settings: ChatGPT_MDSettings | undefined,
-    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<unknown>
-  ): Promise<string[]> {
-    if (!this.validateApiKey(apiKey)) return [];
-
-    const data = await makeGetRequest(`${url}/v1/models`, this.getAuthHeaders(apiKey || ""), this.type);
-    // Parse provider response and return prefixed model IDs.
-    return [];
-  }
-}
-```
-
-Use `unknown` for raw external JSON and narrow before reading fields.
-
-### 5. Register adapter and AI SDK factory
-
-Update `src/Services/AiProviderService.ts`:
-
-- import the adapter,
-- add it to the adapter map,
-- add the AI SDK provider factory in `getProviderFactory()` if needed.
-
-Prefer an OpenAI-compatible provider when the API supports it.
-
-### 6. Add auth lookup
-
-Update `src/Services/ApiAuthService.ts` if the provider needs a new API key setting.
-
-### 7. Update URL/frontmatter helpers
-
-Search for existing providers and update equivalent places:
+Update README provider examples, settings documentation, privacy implications, and release notes. Search for existing provider IDs before submitting:
 
 ```bash
-rg "openai|anthropic|gemini|openrouter|ollama|lmstudio|zai" src/Commands src/Utilities src/Services src/Views src/Models
+rg "openai|anthropic|gemini|openrouter|ollama|lmstudio|zai" src docs README.md
 ```
 
-Common files:
+## Validation
 
-- `src/Commands/CommandUtilities.ts`
-- `src/Utilities/FrontmatterHelpers.ts`
-- `src/Utilities/ProviderHelpers.ts`
-- `src/Services/SettingsService.ts`
-
-### 8. Update settings UI
-
-Update provider settings in `src/Views/ChatGPT_MDSettingsTab.ts`.
-
-This area is scheduled for refactor into a data-driven schema. Keep changes minimal and consistent with existing provider sections.
-
-### 9. Add tests where practical
-
-Good test targets:
-
-- adapter model parsing,
-- URL resolution,
-- provider detection from model prefix,
-- settings/frontmatter merge behavior.
-
-## Checklist
-
-- [ ] Provider constant/type added.
-- [ ] Defaults added.
-- [ ] Settings interface/defaults updated.
-- [ ] Adapter implemented.
-- [ ] Adapter registered in `AiProviderService`.
-- [ ] API key lookup updated if needed.
-- [ ] URL/frontmatter/provider helper paths updated.
-- [ ] Settings UI updated.
-- [ ] Docs updated.
-- [ ] `npm run build` passes.
-- [ ] `npm test -- --runInBand` passes.
-- [ ] `npm run lint` passes or only existing warnings remain.
-
-## Future direction
-
-The maintainability plan recommends a central provider registry so provider metadata is defined once and reused by defaults, settings UI, URL resolution, frontmatter generation, model fetching, and adapter registration.
-
-Until then, use the checklist above and search carefully before changing provider behavior.
+```bash
+npm run format:check
+npm run lint
+npm run typecheck
+npm test -- --runInBand
+npm run build
+```

@@ -1,8 +1,41 @@
+import { MergedFrontmatterConfig } from "src/Models/Config";
 import { Message } from "src/Models/Message";
 
 export interface PreparedAiSdkPrompt {
   instructions?: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
+}
+
+/**
+ * Build the system context for a chat request.
+ *
+ * The plugin-level message is always included first, followed by agent context
+ * and effective frontmatter commands.
+ */
+export function buildChatSystemMessages(
+  pluginSystemMessage: string | undefined,
+  frontmatter: MergedFrontmatterConfig
+): Message[] {
+  const messages: Message[] = [];
+
+  if (pluginSystemMessage?.trim()) {
+    messages.push({ role: "system", content: pluginSystemMessage });
+  }
+
+  const agentBody = frontmatter._agentSystemMessage;
+  if (typeof agentBody === "string" && agentBody.trim()) {
+    messages.push({ role: "system", content: agentBody });
+  }
+
+  if (Array.isArray(frontmatter.system_commands)) {
+    for (const command of frontmatter.system_commands) {
+      if (typeof command === "string" && command.trim()) {
+        messages.push({ role: "system", content: command });
+      }
+    }
+  }
+
+  return messages;
 }
 
 /**

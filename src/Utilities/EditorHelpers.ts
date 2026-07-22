@@ -1,6 +1,6 @@
 import { Editor } from "obsidian";
-import { HORIZONTAL_LINE_CLASS, NEWLINE, ROLE_ASSISTANT, ROLE_IDENTIFIER, ROLE_USER } from "src/Constants";
-import { getHeaderRole, getHeadingPrefix } from "src/Utilities/TextHelpers";
+import { HORIZONTAL_LINE_CLASS, NEWLINE, ROLE_IDENTIFIER } from "src/Constants";
+import { getHeadingPrefix } from "src/Utilities/TextHelpers";
 
 /**
  * Utility functions for editor operations
@@ -17,17 +17,6 @@ export function addHorizontalRule(editor: Editor, role: string, headingLevel: nu
 
   editor.replaceRange(formattedContent, currentPosition);
   editor.setCursor(currentPosition.line + formattedContent.split("\n").length - 1, 0);
-}
-
-/**
- * Append a message to the editor
- */
-export function appendMessage(editor: Editor, message: string, headingLevel: number): void {
-  const headingPrefix = getHeadingPrefix(headingLevel);
-  const assistantRoleHeader = getHeaderRole(headingPrefix, ROLE_ASSISTANT);
-  const userRoleHeader = getHeaderRole(headingPrefix, ROLE_USER);
-
-  editor.replaceRange(`${assistantRoleHeader}${message}${userRoleHeader}`, editor.getCursor());
 }
 
 /**

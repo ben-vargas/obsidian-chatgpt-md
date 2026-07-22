@@ -1,6 +1,7 @@
 import { App, normalizePath, Notice, SuggestModal, TFile, TFolder } from "obsidian";
 
 import { ChatGPT_MDSettings } from "src/Models/Config";
+import { Logger } from "src/Utilities/Logger";
 
 interface ChatTemplate {
   title: string;
@@ -61,7 +62,11 @@ export class ChatTemplatesSuggestModal extends SuggestModal<ChatTemplate> {
   }
 
   // Perform action on the selected suggestion.
-  async onChooseSuggestion(template: ChatTemplate, evt: MouseEvent | KeyboardEvent) {
+  onChooseSuggestion(template: ChatTemplate, _evt: MouseEvent | KeyboardEvent): void {
+    void this.createChatFromTemplate(template);
+  }
+
+  private async createChatFromTemplate(template: ChatTemplate): Promise<void> {
     new Notice(`Selected ${template.title}`);
     const templateText = await this.app.vault.read(template.file);
 
@@ -88,7 +93,7 @@ export class ChatTemplatesSuggestModal extends SuggestModal<ChatTemplate> {
       // open new file
       await this.app.workspace.openLinkText(file.basename, "", true);
     } catch (error) {
-      console.error(error);
+      Logger.error("[ChatGPT MD] Error creating chat from selected template", { error });
     }
   }
 }

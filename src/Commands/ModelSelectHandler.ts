@@ -1,19 +1,20 @@
 import { Editor, MarkdownView } from "obsidian";
 import { ServiceContainer } from "src/core/ServiceContainer";
 import { AiModelSuggestModal } from "src/Views/AiModelSuggestModel";
-import { AI_SERVICE_OPENAI, AI_SERVICE_OPENROUTER } from "src/Constants";
 import { getProviderDefinitions } from "src/Services/Providers/ProviderRegistry";
 import { fetchAvailableModels, getAiApiUrls, getDefaultApiUrls } from "./CommandUtilities";
+import { CommandMetadata, EditorViewCommandHandler } from "./CommandHandler";
+import { Logger } from "src/Utilities/Logger";
 
 /**
  * Handler for the model selection command
  */
-export class ModelSelectHandler {
+export class ModelSelectHandler implements EditorViewCommandHandler {
   private availableModels: string[] = [];
 
   constructor(private services: ServiceContainer) {}
 
-  static getCommand() {
+  getCommand(): CommandMetadata {
     return {
       id: "select-model-command",
       name: "Select Model",
@@ -24,7 +25,7 @@ export class ModelSelectHandler {
   /**
    * Execute the model selection command
    */
-  async execute(editor: Editor, view: MarkdownView | any): Promise<void> {
+  async execute(editor: Editor, view: MarkdownView): Promise<void> {
     const { editorService, settingsService, apiAuthService } = this.services;
     const settings = settingsService.getSettings();
 
@@ -41,10 +42,7 @@ export class ModelSelectHandler {
     // --- Step 2: Fetch fresh models asynchronously ---
     void (async () => {
       try {
-        const frontmatter = await editorService.getFrontmatter(view, settings, this.services.app);
-        const openAiKey = apiAuthService.getApiKey(settings, AI_SERVICE_OPENAI);
-        const openRouterKey = apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER);
-
+        const frontmatter = await editorService.getFrontmatter(view);
         const frontmatterUrls = getAiApiUrls(frontmatter);
         const currentUrls = Object.fromEntries(
           getProviderDefinitions().map((provider) => [
@@ -54,14 +52,7 @@ export class ModelSelectHandler {
         );
 
         const aiService = this.services.aiProviderService();
-        const freshModels = await fetchAvailableModels(
-          aiService,
-          currentUrls,
-          openAiKey,
-          openRouterKey,
-          apiAuthService,
-          settingsService
-        );
+        const freshModels = await fetchAvailableModels(aiService, currentUrls, apiAuthService, settingsService);
 
         // --- Step 3: Compare and potentially update modal ---
         // Basic comparison: Check if lengths differ or if sets of models differ
@@ -82,7 +73,7 @@ export class ModelSelectHandler {
       } catch (e) {
         // Don't close the initial modal here, as it might still be useful
         // Just log the error for background fetching failure
-        console.error("[ChatGPT MD] Error fetching fresh models in background:", e);
+        Logger.error("[ChatGPT MD] Error fetching fresh models in background", { error: e });
       }
     })(); // Self-invoking async function to run in background
   }
@@ -101,23 +92,13 @@ export class ModelSelectHandler {
     try {
       const { settingsService, apiAuthService } = this.services;
       const settings = settingsService.getSettings();
-      const openAiKey = apiAuthService.getApiKey(settings, AI_SERVICE_OPENAI);
-      const openRouterKey = apiAuthService.getApiKey(settings, AI_SERVICE_OPENROUTER);
-
       // Use default URLs for initialization, assuming frontmatter isn't available yet
       const defaultUrls = getDefaultApiUrls(settings);
 
       const aiService = this.services.aiProviderService();
-      this.availableModels = await fetchAvailableModels(
-        aiService,
-        defaultUrls,
-        openAiKey,
-        openRouterKey,
-        apiAuthService,
-        settingsService
-      );
+      this.availableModels = await fetchAvailableModels(aiService, defaultUrls, apiAuthService, settingsService);
     } catch (error) {
-      console.error("[ChatGPT MD] Error initializing available models:", error);
+      Logger.error("[ChatGPT MD] Error initializing available models", { error });
       this.availableModels = []; // Ensure it's an empty array on error
     }
   }

@@ -1,4 +1,4 @@
-import { MarkdownView, Plugin } from "obsidian";
+import { Plugin } from "obsidian";
 import { ServiceContainer } from "./core/ServiceContainer";
 import { ChatHandler } from "./Commands/ChatHandler";
 import { ModelSelectHandler } from "./Commands/ModelSelectHandler";
@@ -8,6 +8,7 @@ import { InferTitleHandler } from "./Commands/InferTitleHandler";
 import { ChooseChatTemplateHandler, ClearChatHandler, MoveToNewChatHandler } from "./Commands/RemainingHandlers";
 import { ChooseAgentHandler, CreateAgentHandler } from "./Commands/AgentHandlers";
 import { CommandRegistrar } from "./Commands/CommandRegistrar";
+import { Logger } from "./Utilities/Logger";
 
 export default class ChatGPT_MD extends Plugin {
   private services: ServiceContainer;
@@ -40,7 +41,7 @@ export default class ChatGPT_MD extends Plugin {
     // Initialize available models after registry is created, but don't block startup
     // Run model initialization in the background
     this.modelSelectHandler.initializeAvailableModels().catch((error) => {
-      console.error("[ChatGPT MD] Error initializing models in background:", error);
+      Logger.error("[ChatGPT MD] Error initializing models in background", { error });
     });
   }
 
@@ -50,25 +51,8 @@ export default class ChatGPT_MD extends Plugin {
   private registerCommands(): void {
     const registrar = new CommandRegistrar(this);
 
-    // Chat command
-    this.addCommand({
-      ...ChatHandler.getCommand(),
-      editorCallback: (editor, view) => {
-        if (view instanceof MarkdownView) {
-          void this.chatHandler.execute(editor, view);
-        }
-      },
-    });
-
-    // Select model command
-    this.addCommand({
-      ...ModelSelectHandler.getCommand(),
-      editorCallback: (editor, view) => {
-        if (view instanceof MarkdownView) {
-          void this.modelSelectHandler.execute(editor, view);
-        }
-      },
-    });
+    registrar.registerEditorViewCommand(this.chatHandler);
+    registrar.registerEditorViewCommand(this.modelSelectHandler);
 
     // Add divider command
     registrar.registerEditorCommand(new AddDividerHandler(this.services));

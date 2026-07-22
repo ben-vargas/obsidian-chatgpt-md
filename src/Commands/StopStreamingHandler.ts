@@ -5,19 +5,26 @@ import { CallbackCommandHandler, CommandMetadata } from "./CommandHandler";
 /**
  * Handler for stopping streaming responses
  */
+export interface AbortableAiService {
+  stopStreaming(): void;
+}
+
 export class StopStreamingHandler implements CallbackCommandHandler {
-  private currentAiService: any = null;
+  private currentAiService: AbortableAiService | null = null;
 
   constructor(private services: ServiceContainer) {}
 
-  setCurrentAiService(aiService: any): void {
+  setCurrentAiService(aiService: AbortableAiService): void {
     this.currentAiService = aiService;
+  }
+
+  clearCurrentAiService(aiService: AbortableAiService): void {
+    if (this.currentAiService === aiService) this.currentAiService = null;
   }
 
   execute(): void {
     // Use the aiService's stopStreaming method if available
-    if (this.currentAiService && "stopStreaming" in this.currentAiService) {
-      // @ts-ignore - Call the stopStreaming method
+    if (this.currentAiService) {
       this.currentAiService.stopStreaming();
     } else {
       // No active AI service to stop streaming

@@ -36,7 +36,7 @@ export interface AiProviderConfig {
 export interface ProviderModelData {
   id: string;
   name?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -55,11 +55,6 @@ export interface ProviderAdapter {
   readonly displayName: string;
 
   /**
-   * Default base URL for this provider's API
-   */
-  getDefaultBaseUrl(): string;
-
-  /**
    * Create authentication headers for API requests
    */
   getAuthHeaders(apiKey: string): Record<string, string>;
@@ -75,13 +70,8 @@ export interface ProviderAdapter {
     url: string,
     apiKey: string | undefined,
     settings: ChatGPT_MDSettings | undefined,
-    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<any>
+    makeGetRequest: (url: string, headers: Record<string, string>, provider: string) => Promise<unknown>
   ): Promise<string[]>;
-
-  /**
-   * Whether this provider supports tool calling (function calling)
-   */
-  supportsToolCalling(): boolean;
 
   /**
    * Whether this provider requires an API key

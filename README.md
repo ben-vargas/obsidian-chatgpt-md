@@ -218,9 +218,13 @@ A: A reusable AI persona. Like having different experts on call—writing coach 
 - Completely private
 
 **Always:**
-- Your notes stay in your vault
-- No tracking from us
-- You control what AI sees
+- API keys are stored in Obsidian's local plugin data (not an operating-system keychain)
+- Chat messages and automatically expanded `[[linked notes]]` are sent to the selected provider
+- AI tools require approval before execution, and vault/web search results must be selected before sharing
+- Custom web-search endpoints receive your query and any configured bearer credential
+- No tracking from this plugin
+
+See [`SECURITY.md`](SECURITY.md) for vulnerability reporting and the full data model.
 
 ---
 

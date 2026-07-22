@@ -1,47 +1,26 @@
-import { Message } from "src/Models/Message";
 import { Editor, MarkdownView } from "obsidian";
-import { ToolService } from "src/Services/ToolService";
 import { ChatGPT_MDSettings } from "src/Models/Config";
-import { EditorService } from "src/Services/EditorService";
-import { LanguageModel } from "ai";
+import { Message } from "src/Models/Message";
+import { ToolExecutionResult } from "src/Models/Tool";
 
-// AI SDK providers
-import { OpenAIProvider } from "@ai-sdk/openai";
-import { OpenAICompatibleProvider } from "@ai-sdk/openai-compatible";
-import { AnthropicProvider } from "@ai-sdk/anthropic";
-import { GoogleProvider } from "@ai-sdk/google";
-import { OpenRouterProvider } from "@openrouter/ai-sdk-provider";
-
-/**
- * AI Provider instance that can create language models
- */
-export interface AiProviderInstance {
-  (modelId: string): LanguageModel;
+export interface TitleWriter {
+  writeInferredTitle(view: MarkdownView, title: string): Promise<void>;
 }
 
-/**
- * Provider factory configuration
- */
-export interface ProviderFactoryConfig {
-  apiKey: string;
-  baseURL: string;
-  fetch?: typeof fetch;
-  name: string; // Required for OpenAICompatible providers
+export interface ToolRequestService {
+  getToolsForRequest(settings: ChatGPT_MDSettings): Record<string, unknown> | undefined;
+  handleToolCalls(toolCalls: unknown[], modelName?: string): Promise<ToolExecutionResult[]>;
+  processToolResults(
+    toolCalls: unknown[],
+    toolResults: ToolExecutionResult[],
+    modelName?: string
+  ): Promise<{
+    filteredResults: ToolExecutionResult[];
+    contextMessages: Array<{ role: "user"; content: string }>;
+  }>;
 }
 
-/**
- * Provider factory function type
- * Note: This is a loose type to accommodate different provider factory signatures
- */
-export type ProviderFactory = (config: ProviderFactoryConfig) => AiProviderInstance;
-
-/**
- * Interface defining the contract for AI service implementations
- */
 export interface IAiApiService {
-  /**
-   * Call the AI API with the given parameters
-   */
   callAiAPI(
     messages: Message[],
     options: Record<string, unknown>,
@@ -51,30 +30,16 @@ export interface IAiApiService {
     setAtCursor?: boolean,
     apiKey?: string,
     settings?: ChatGPT_MDSettings,
-    toolService?: ToolService
-  ): Promise<{
-    fullString: string;
-    mode: string;
-    wasAborted?: boolean;
-  }>;
+    toolService?: ToolRequestService
+  ): Promise<{ fullString: string; mode: string; wasAborted?: boolean }>;
 
-  /**
-   * Infer a title from messages
-   */
   inferTitle(
     view: MarkdownView,
     settings: ChatGPT_MDSettings,
     messages: string[],
-    editorService: EditorService
+    editorService: TitleWriter
   ): Promise<string>;
 
-  /**
-   * Fetch available models for this service
-   * @param url - Base URL for API
-   * @param apiKey - API key for authentication (if required)
-   * @param settings - Plugin settings
-   * @param providerType - Optional provider type (for unified service)
-   */
   fetchAvailableModels(
     url: string,
     apiKey?: string,
@@ -83,22 +48,6 @@ export interface IAiApiService {
   ): Promise<string[]>;
 }
 
-/**
- * Type definition for all supported AI providers
- */
-export type AiProvider =
-  OpenAIProvider | OpenAICompatibleProvider | AnthropicProvider | GoogleProvider | OpenRouterProvider;
-
-/**
- * Ollama model interface
- */
-export interface OllamaModel {
-  name: string;
-}
-
-/**
- * Type for streaming API response
- */
 export type StreamingResponse = {
   fullString: string;
   mode: "streaming";

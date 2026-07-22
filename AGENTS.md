@@ -53,6 +53,10 @@ Current lint may report complexity/length warnings. Do not treat existing warnin
 
 ### Services
 
+- `src/Services/Providers/ProviderRegistry.ts`
+  - Operational source of truth for provider IDs, defaults, credentials, URLs, adapters, and AI SDK factories.
+  - Keep user-facing settings copy in the settings schema and protocol differences in adapters.
+
 - `src/Services/AiProviderService.ts`
   - Current facade for AI calls, streaming, provider selection, title inference, and tool-call handling.
   - Large; prefer incremental extraction of pure helpers over rewrites.
@@ -96,7 +100,7 @@ Current lint may report complexity/length warnings. Do not treat existing warnin
 
 ### DRY
 
-Provider metadata is currently duplicated across config, settings UI, frontmatter helpers, command utilities, and adapters. Until a provider registry exists, search before changing provider behavior.
+Operational provider metadata is centralized in `ProviderRegistry`. Search before changing provider behavior because user-facing settings fields, migrations, documentation, and adapter-specific protocol logic remain separate concerns.
 
 ```bash
 rg "openai|anthropic|gemini|openrouter|ollama|lmstudio|zai" src
@@ -124,16 +128,14 @@ rg "openai|anthropic|gemini|openrouter|ollama|lmstudio|zai" src
 
 ## Adding provider behavior today
 
-The project currently uses a unified `AiProviderService` plus provider adapters. Until a central provider registry is implemented, adding a provider requires coordinated edits:
+The project uses a unified `AiProviderService`, a provider registry, and provider adapters:
 
 1. Add an adapter in `src/Services/Adapters/` implementing `ProviderAdapter`.
-2. Add provider constants/types in `src/Constants.ts` as needed.
-3. Add defaults in `src/Services/DefaultConfigs.ts`.
-4. Add settings fields/defaults in `src/Models/Config.ts`.
-5. Register the adapter in `src/Services/AiProviderService.ts`.
-6. Update URL/model/frontmatter helpers if needed.
-7. Update settings UI in `src/Views/ChatGPT_MDSettingsTab.ts`.
-8. Add/update docs and tests.
+2. Add the provider ID/type in `src/Constants.ts`.
+3. Add defaults in `src/Services/DefaultConfigs.ts` and persisted fields in `src/Models/Config.ts`.
+4. Add one operational definition in `src/Services/Providers/ProviderRegistry.ts`.
+5. Add provider-specific settings fields to `src/Views/settingsSchema.ts`.
+6. Add/update migrations, docs, routing tests, and registry completeness tests.
 
 ## Working with settings/frontmatter
 
