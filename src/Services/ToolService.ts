@@ -18,6 +18,7 @@ import {
 } from "src/Models/Tool";
 import { createDefaultTools } from "./Tools/defaultTools";
 import { ToolApprovalCoordinator, ToolApprovalGateway } from "./Tools/ToolApprovalCoordinator";
+import { ApiAuthService } from "./ApiAuthService";
 import {
   fileReadContext,
   noVaultResultsContext,
@@ -48,7 +49,8 @@ export class ToolService {
     private settingsService: ChatGPT_MDSettings,
     vaultSearchService?: VaultSearchService,
     webSearchService?: WebSearchService,
-    approvalGateway?: ToolApprovalGateway
+    approvalGateway?: ToolApprovalGateway,
+    private readonly apiAuthService: ApiAuthService = new ApiAuthService()
   ) {
     this.toolResultHandlers = {
       vault_search: this.handleVaultSearchResult.bind(this),
@@ -75,6 +77,7 @@ export class ToolService {
       settings: this.settingsService,
       vaultSearchService: this.vaultSearchService,
       webSearchService: this.webSearchService,
+      resolveWebSearchCredential: () => this.apiAuthService.resolveWebSearchCredential(this.settingsService),
     }).forEach((toolDefinition, name) => this.registerTool(name, toolDefinition));
   }
 
@@ -95,7 +98,7 @@ export class ToolService {
    */
   private isWebSearchAvailable(settings: ChatGPT_MDSettings): boolean {
     if (settings.webSearchProvider === "brave") {
-      return !!settings.webSearchApiKey && settings.webSearchApiKey.trim().length > 0;
+      return this.apiAuthService.resolveWebSearchCredential(settings).length > 0;
     }
     if (settings.webSearchProvider === "custom") {
       return !!settings.webSearchApiUrl && settings.webSearchApiUrl.trim().length > 0;

@@ -20,7 +20,7 @@ A persisted pair representing a single category.
 
 | Field | Type | Supported environment | Unsupported environment |
 |---|---|---|---|
-| Legacy value (for example `apiKey`) | string | Empty after successful migration; retained while migration is pending/failed or until confirmed deletion when a valid same-category reference exists | Plaintext API key used as today |
+| Legacy value (for example `apiKey`) | optional string | Omitted from `data.json` after successful migration or confirmed deletion; normalized to an empty value in memory when absent. Retained while migration is pending/failed or until confirmed deletion when a valid same-category reference exists | Plaintext API key used as today; omitted when cleared |
 | Reference (for example `apiKeySecretId`) | optional string | ID selected through `SecretComponent` and resolved through `SecretStorage` | Ignored; no secure UI is shown |
 
 ### Added reference fields

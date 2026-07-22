@@ -1,5 +1,13 @@
 # ChatGPT MD Changelog
 
+## Unreleased - Secure API Key Storage
+
+- Stores provider and web-search API keys in Obsidian's vault-local secret storage when both storage and native credential controls are available.
+- Migrates existing plaintext keys safely on load and retries failed categories when settings opens without interrupting authentication.
+- Adds an explicit **Delete insecure copy** action when a valid secure credential and plaintext copy coexist.
+- Keeps replaced or cleared secure records under Obsidian's user-managed lifecycle instead of deleting them.
+- Preserves plaintext controls and authentication on older or partially capable Obsidian versions. Downgrading after migration may require re-entering keys.
+
 ## v3.2.0 - Provider Reliability and AI SDK 7
 
 ### 🚀 Provider and Model Updates

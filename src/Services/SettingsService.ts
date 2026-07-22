@@ -9,8 +9,14 @@ import { getDefaultConfigForService } from "src/Utilities/FrontmatterHelpers";
 import { aiProviderFromKeys, aiProviderFromUrl } from "src/Utilities/ProviderHelpers";
 import type { AgentService } from "./AgentService";
 import { AI_SERVICE_OPENAI } from "src/Constants";
-import { findProviderDefinition, getProviderFrontmatterFields } from "./Providers/ProviderRegistry";
+import {
+  findProviderDefinition,
+  getCredentialDefinitions,
+  getProviderFrontmatterFields,
+} from "./Providers/ProviderRegistry";
 import { Logger } from "src/Utilities/Logger";
+import { ApiAuthService, CredentialMigrationSummary, isValidApiKey } from "./ApiAuthService";
+import { CredentialDefinition } from "./Providers/ProviderRegistry";
 
 /**
  * Manages plugin settings with persistence
@@ -24,7 +30,8 @@ export class SettingsService {
     private readonly plugin: Plugin,
     private readonly frontmatterManager: FrontmatterManager,
     private readonly agentService: AgentService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly apiAuthService: ApiAuthService = new ApiAuthService()
   ) {
     this.migrationService = new SettingsMigrationService();
     this.settings = structuredClone(DEFAULT_SETTINGS);
@@ -63,7 +70,41 @@ export class SettingsService {
    * Save settings to plugin data
    */
   async saveSettings(): Promise<void> {
-    await this.plugin.saveData(this.settings);
+    const persistedSettings = structuredClone(this.settings);
+    const persistedRecord = persistedSettings as unknown as Record<string, unknown>;
+    for (const definition of getCredentialDefinitions()) {
+      if (!isValidApiKey(persistedRecord[definition.legacySetting])) {
+        delete persistedRecord[definition.legacySetting];
+      }
+    }
+    await this.plugin.saveData(persistedSettings);
+  }
+
+  /** Migrate each eligible plaintext credential using per-category persistence. */
+  async migrateCredentials(): Promise<CredentialMigrationSummary> {
+    return this.apiAuthService.migrateLegacyCredentials(this.settings, this.saveSettings.bind(this));
+  }
+
+  /** Called once per settings-tab display; the service decides whether work is eligible. */
+  async retryCredentialMigration(): Promise<CredentialMigrationSummary> {
+    return this.migrateCredentials();
+  }
+
+  /** Explicitly remove a plaintext copy only when its secure reference resolves. */
+  async deleteInsecureCredentialCopy(definition: CredentialDefinition): Promise<boolean> {
+    const current = this.settings[definition.legacySetting];
+    if (!this.apiAuthService.hasValidReference(this.settings, definition) || !isValidApiKey(current)) {
+      return false;
+    }
+
+    (this.settings as unknown as Record<string, unknown>)[definition.legacySetting] = "";
+    try {
+      await this.saveSettings();
+      return true;
+    } catch (error) {
+      (this.settings as unknown as Record<string, unknown>)[definition.legacySetting] = current;
+      throw error;
+    }
   }
 
   /**
@@ -84,6 +125,9 @@ export class SettingsService {
         settings: this.settings,
         updateSettings: this.updateSettings.bind(this),
         saveSettings: this.saveSettings.bind(this),
+        retryCredentialMigration: this.retryCredentialMigration.bind(this),
+        deleteInsecureCredentialCopy: this.deleteInsecureCredentialCopy.bind(this),
+        apiAuthService: this.apiAuthService,
       })
     );
   }

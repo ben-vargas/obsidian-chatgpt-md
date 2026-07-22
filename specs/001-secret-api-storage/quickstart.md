@@ -50,7 +50,7 @@ Required focused assertions:
 1. Back up a test vault and configure distinct test keys for all six categories with the previous plugin build.
 2. Install the feature build and start Obsidian.
 3. Confirm provider model listing/chat and web search still authenticate.
-4. Inspect `.obsidian/plugins/chatgpt-md/data.json`: legacy key values are empty and only reference IDs remain.
+4. Inspect `.obsidian/plugins/chatgpt-md/data.json`: legacy key fields are absent and only reference IDs remain.
 5. Open settings and confirm native secret controls appear; select, create, replace, and clear credentials, then confirm old secure records remain available for user management.
 6. Seed a valid reference plus same-category plaintext, open settings, verify the explanation/button appears only there, then click the explicitly labeled deletion button and verify plaintext clears only after the save succeeds.
 7. Delete one selected secret through Obsidian's credential management, then confirm the plugin reports the key as missing without exposing its ID.
@@ -69,3 +69,27 @@ Required focused assertions:
 ### Downgrade behavior
 
 After migration, run the plugin in an unsupported environment and confirm migrated credentials are reported missing rather than sending reference IDs. Re-enter legacy keys if continued use on that environment is required, as documented.
+
+## Implementation verification record
+
+Recorded for the feature implementation:
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| Full secure capability, six-category migration, mixed state, invalid/deleted reference, deterministic-ID collision, save rollback, ten retries | PASS | Deterministic Jest coverage in `ApiAuthService.test.ts` and `SettingsService.test.ts` |
+| Storage-only, UI-only, and neither capability; downgrade never sends an opaque reference | PASS | Capability and legacy-resolution Jest coverage in `ApiAuthService.test.ts` |
+| Confirmed deletion and failed-save retention | PASS | Service coverage in `SettingsService.test.ts`; UI action is capability-gated in `ChatGPT_MDSettingsTab.ts` |
+| Old secure-record retention on replace/clear | PASS | Reference updates never invoke a secure-record deletion API |
+| Web-search approval, rejected execution, secure resolution, and selected-results-only context | PASS | `ToolService.test.ts` |
+| Desktop Obsidian interactive walkthrough | NOT AVAILABLE IN CLI HARNESS | Repeat the supported-Obsidian checklist above in a test vault before release |
+| Mobile Obsidian interactive walkthrough | NOT AVAILABLE IN CLI HARNESS | Repeat on mobile where the release test environment is available |
+
+### Final automated gates
+
+- `npm run format:check` — PASS
+- `npm run lint` — PASS (no warnings)
+- `npm run typecheck` — PASS
+- `npm test -- --runInBand` — PASS (23 suites, 190 tests)
+- `npm run build` — PASS
+
+No pre-existing warnings were emitted by the final lint run. The build-generated `main.js` was not edited by hand.

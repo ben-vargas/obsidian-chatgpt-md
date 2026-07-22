@@ -1,7 +1,23 @@
 // Mock Obsidian API for testing
 import { jest } from "@jest/globals";
 
+export class SecretStorage {
+  private readonly secrets = new Map<string, string>();
+
+  constructor(initial: Record<string, string> = {}) {
+    Object.entries(initial).forEach(([id, secret]) => this.secrets.set(id, secret));
+  }
+
+  setSecret = jest.fn((id: string, secret: string) => {
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) throw new Error("Invalid secret ID");
+    this.secrets.set(id, secret);
+  });
+  getSecret = jest.fn((id: string) => this.secrets.get(id) ?? null);
+  listSecrets = jest.fn(() => [...this.secrets.keys()]);
+}
+
 export class App {
+  secretStorage?: SecretStorage;
   workspace = {
     getActiveViewOfType: jest.fn(),
     getActiveFile: jest.fn(),
@@ -15,6 +31,10 @@ export class App {
   metadataCache = {
     getFileCache: jest.fn(),
   };
+
+  constructor(options: { secretStorage?: SecretStorage } = {}) {
+    this.secretStorage = options.secretStorage;
+  }
 }
 
 export class Plugin {
@@ -81,15 +101,80 @@ export class Modal {
   onClose = jest.fn();
 }
 
+class MockValueComponent<T> {
+  value?: T;
+  change?: (value: T) => unknown;
+  inputEl = document.createElement("input");
+  selectEl = document.createElement("select");
+  setPlaceholder = jest.fn(() => this);
+  setValue = jest.fn((value: T) => {
+    this.value = value;
+    return this;
+  });
+  onChange = jest.fn((callback: (value: T) => unknown) => {
+    this.change = callback;
+    return this;
+  });
+  addOptions = jest.fn(() => this);
+  triggerChange(value: T): unknown {
+    return this.change?.(value);
+  }
+}
+
+export class ButtonComponent {
+  click?: () => unknown;
+  setButtonText = jest.fn(() => this);
+  setWarning = jest.fn(() => this);
+  onClick = jest.fn((callback: () => unknown) => {
+    this.click = callback;
+    return this;
+  });
+}
+
+export const secretComponentInstances: SecretComponent[] = [];
+
+export class SecretComponent {
+  value = "";
+  change?: (value: string) => unknown;
+
+  constructor(_app: App, _containerEl: HTMLElement) {
+    secretComponentInstances.push(this);
+  }
+
+  setValue = jest.fn((value: string) => {
+    this.value = value;
+    return this;
+  });
+  onChange = jest.fn((callback: (value: string) => unknown) => {
+    this.change = callback;
+    return this;
+  });
+  triggerChange(value: string): unknown {
+    return this.change?.(value);
+  }
+}
+
 export class Setting {
+  controlEl = document.createElement("div");
   setName = jest.fn(() => this);
   setDesc = jest.fn(() => this);
-  addText = jest.fn(() => this);
-  addTextArea = jest.fn(() => this);
-  addToggle = jest.fn(() => this);
-  addDropdown = jest.fn(() => this);
-  addButton = jest.fn(() => this);
+  addText = jest.fn((callback: (component: MockValueComponent<string>) => unknown) => {
+    callback(new MockValueComponent<string>());
+    return this;
+  });
+  addTextArea = this.addText;
+  addToggle = jest.fn((callback: (component: MockValueComponent<boolean>) => unknown) => {
+    callback(new MockValueComponent<boolean>());
+    return this;
+  });
+  addDropdown = this.addText;
+  addButton = jest.fn((callback: (component: ButtonComponent) => unknown) => {
+    callback(new ButtonComponent());
+    return this;
+  });
   setClass = jest.fn(() => this);
+
+  constructor(_container?: HTMLElement) {}
 }
 
 export class PluginSettingTab {

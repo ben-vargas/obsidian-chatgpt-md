@@ -1,4 +1,4 @@
-import { App, Plugin } from "obsidian";
+import { App, Plugin, SecretComponent } from "obsidian";
 import { FileService } from "src/Services/FileService";
 import { MessageService } from "src/Services/MessageService";
 import { TemplateService } from "src/Services/TemplateService";
@@ -100,7 +100,7 @@ export class ServiceContainer {
    * to composite services (depend on other services).
    */
   static create(app: App, plugin: Plugin): ServiceContainer {
-    const infrastructure = this.createInfrastructureServices();
+    const infrastructure = this.createInfrastructureServices(app);
     const content = this.createContentServices(app, infrastructure.notificationService);
     const composites = this.createCompositeServices(app, plugin, infrastructure, content);
     const { settingsService, editorService, templateService, agentService } = composites;
@@ -116,7 +116,9 @@ export class ServiceContainer {
       infrastructure.notificationService,
       composites.settingsService.getSettings(),
       vaultSearchService,
-      webSearchService
+      webSearchService,
+      undefined,
+      infrastructure.apiAuthService
     );
 
     return new ServiceContainer(
@@ -155,7 +157,8 @@ export class ServiceContainer {
       plugin,
       content.frontmatterManager,
       agentService,
-      infrastructure.notificationService
+      infrastructure.notificationService,
+      infrastructure.apiAuthService
     );
     const editorService = new EditorService(content.fileService, content.messageService, settingsService);
     return {
@@ -166,7 +169,7 @@ export class ServiceContainer {
     };
   }
 
-  private static createInfrastructureServices(): {
+  private static createInfrastructureServices(app: App): {
     notificationService: NotificationService;
     errorService: ErrorService;
     apiAuthService: ApiAuthService;
@@ -176,7 +179,7 @@ export class ServiceContainer {
     return {
       notificationService,
       errorService,
-      apiAuthService: new ApiAuthService(),
+      apiAuthService: new ApiAuthService(app, SecretComponent as unknown),
     };
   }
 

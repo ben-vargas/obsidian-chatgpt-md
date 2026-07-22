@@ -41,7 +41,7 @@ export class Logger {
     return Object.fromEntries(
       Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
         key,
-        /apiKey|key|token|authorization/i.test(key) ? "[REDACTED]" : Logger.redact(entry, seen),
+        /apiKey|key|token|authorization|secret(?:Id)?/i.test(key) ? "[REDACTED]" : Logger.redact(entry, seen),
       ])
     );
   }

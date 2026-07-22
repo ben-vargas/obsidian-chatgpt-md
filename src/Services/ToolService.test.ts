@@ -2,6 +2,12 @@ import { jest } from "@jest/globals";
 import { z } from "zod";
 import { ToolApprovalGateway } from "./Tools/ToolApprovalCoordinator";
 import { ToolService } from "./ToolService";
+import { ApiAuthService } from "./ApiAuthService";
+import { DEFAULT_SETTINGS } from "src/Models/Config";
+
+class FakeSecretComponent {
+  constructor(_app: never, _container: never) {}
+}
 
 describe("ToolService", () => {
   it("keeps executors private until the user approval flow runs", () => {
@@ -79,6 +85,70 @@ describe("ToolService", () => {
     expect(processed.contextMessages).toHaveLength(1);
     expect(processed.contextMessages[0].content).toContain("visible");
     expect(processed.contextMessages[0].content).not.toContain("private");
+  });
+
+  it("resolves secure web-search credentials only for approved execution", async () => {
+    const storage = {
+      setSecret: jest.fn(),
+      getSecret: jest.fn(() => "resolved-web-secret"),
+      listSecrets: jest.fn(() => ["selected-web-secret"]),
+    };
+    const auth = new ApiAuthService({ secretStorage: storage }, FakeSecretComponent);
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      enableToolCalling: true,
+      webSearchApiKey: "",
+      webSearchApiKeySecretId: "selected-web-secret",
+    };
+    const searchWeb = jest.fn(async () => []);
+    const approval = createApprovalGateway({ approved: true, approvalId: "approval" });
+    const service = new ToolService(
+      {} as never,
+      {} as never,
+      { showWarning: jest.fn() } as never,
+      settings,
+      undefined,
+      { searchWeb } as never,
+      approval,
+      auth
+    );
+
+    expect(service.getToolsForRequest(settings)?.web_search).toBeDefined();
+    await service.handleToolCalls([{ toolCallId: "web", toolName: "web_search", input: { query: "privacy" } }]);
+
+    expect(searchWeb).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "privacy" }),
+      "brave",
+      "resolved-web-secret",
+      ""
+    );
+  });
+
+  it("does not resolve or execute secure web search when approval is rejected", async () => {
+    const storage = {
+      setSecret: jest.fn(),
+      getSecret: jest.fn(() => "resolved-web-secret"),
+      listSecrets: jest.fn(() => ["selected-web-secret"]),
+    };
+    const auth = new ApiAuthService({ secretStorage: storage }, FakeSecretComponent);
+    const settings = { ...DEFAULT_SETTINGS, webSearchApiKeySecretId: "selected-web-secret" };
+    const searchWeb = jest.fn(async () => []);
+    const service = new ToolService(
+      {} as never,
+      {} as never,
+      { showWarning: jest.fn() } as never,
+      settings,
+      undefined,
+      { searchWeb } as never,
+      createApprovalGateway({ approved: false, approvalId: "approval" }),
+      auth
+    );
+    storage.getSecret.mockClear();
+
+    await service.handleToolCalls([{ toolCallId: "web", toolName: "web_search", input: { query: "privacy" } }]);
+
+    expect(searchWeb).not.toHaveBeenCalled();
+    expect(storage.getSecret).not.toHaveBeenCalled();
   });
 
   it("requests approvals sequentially", async () => {

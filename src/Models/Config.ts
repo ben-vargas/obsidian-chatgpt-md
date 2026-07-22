@@ -44,14 +44,19 @@ temperature: ${DEFAULT_OPENAI_CONFIG.temperature}
 export interface ApiKeySettings {
   /** API Key for OpenAI - used for OpenAI API calls */
   apiKey: string;
+  apiKeySecretId: string;
   /** API Key for OpenRouter - used for OpenRouter proxy API calls */
   openrouterApiKey: string;
+  openrouterApiKeySecretId: string;
   /** API Key for Anthropic - used for Claude models via Anthropic API */
   anthropicApiKey: string;
+  anthropicApiKeySecretId: string;
   /** API Key for Gemini - used for Google Gemini models */
   geminiApiKey: string;
+  geminiApiKeySecretId: string;
   /** API Key for Z.AI - used for GLM models (both Standard API and Coding Plan) */
   zaiApiKey: string;
+  zaiApiKeySecretId: string;
 }
 
 /**
@@ -207,6 +212,8 @@ export interface WebSearchSettings {
   webSearchProvider: "brave" | "custom";
   /** API key for providers that require it */
   webSearchApiKey?: string;
+  /** Opaque Obsidian SecretStorage reference for web search. */
+  webSearchApiKeySecretId: string;
   /** Custom search API endpoint */
   webSearchApiUrl?: string;
   /** Maximum results to return */
@@ -264,10 +271,15 @@ export interface MergedFrontmatterConfig {
 export const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
   // API Keys
   apiKey: "",
+  apiKeySecretId: "",
   openrouterApiKey: "",
+  openrouterApiKeySecretId: "",
   anthropicApiKey: "",
+  anthropicApiKeySecretId: "",
   geminiApiKey: "",
+  geminiApiKeySecretId: "",
   zaiApiKey: "",
+  zaiApiKeySecretId: "",
 
   // Service URLs
   openaiUrl: DEFAULT_OPENAI_CONFIG.url,
@@ -295,6 +307,7 @@ export const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
   // Web Search
   webSearchProvider: "brave",
   webSearchApiKey: "",
+  webSearchApiKeySecretId: "",
   webSearchApiUrl: "",
   maxWebSearchResults: 5,
 
