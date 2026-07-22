@@ -1,5 +1,29 @@
 # ChatGPT MD Changelog
 
+## v3.2.0 - Provider Reliability and AI SDK 7
+
+### 🚀 Provider and Model Updates
+
+- Migrated all provider integrations to AI SDK 7 and current provider SDKs.
+- Fixed title inference so it uses the provider selected by the configured model, including the correct API key and base URL.
+- Rebuilds provider clients when the provider, URL, or API key changes, preventing stale clients from being reused across requests.
+- Centralized provider metadata and routing for consistent authentication, URLs, defaults, model discovery, and frontmatter behavior.
+- Refreshed the default tool-capable model list for OpenAI, Anthropic, Gemini, OpenRouter, and Z.AI.
+
+### 🔒 Tool Calling and Streaming
+
+- Preserved human approval by exposing tool declarations to models without allowing the AI SDK to execute tools automatically.
+- Added stricter tool-call normalization, argument validation, and deterministic result formatting.
+- Improved stream consumption, request handling, cancellation, and error reporting across desktop and mobile environments.
+- Improved OpenAI prompt handling and model filtering for prompt and search model variants.
+
+### 🛠️ Reliability and Maintenance
+
+- Expanded automated coverage for providers, settings migrations, tools, streaming, editor/file behavior, and command cancellation.
+- Split settings rendering and service construction into smaller, testable components.
+- Added provider registry completeness checks and safer parsing for provider API responses.
+- Standardized npm-based development, CI, formatting, security audit, and tagged release workflows.
+
 ## v3.1.0 - Agents System
 
 ### 🤖 Major Features

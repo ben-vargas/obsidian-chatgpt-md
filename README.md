@@ -10,6 +10,8 @@ Chat with AI directly in your notes. Reference your other notes with `[[wiki lin
 
 ## ✨ What's New
 
+**Provider Reliability (v3.2)** — Updated provider integrations, safer tool calling, and more reliable model selection and streaming across cloud and local providers.
+
 **Agents (v3.1)** — Create AI personas like a writing coach, code reviewer, or brainstorming partner. Apply them to any note instantly.
 
 **Tool Calling (v3.0)** — Let AI search your vault, read your notes, and browse the web. You approve everything. Your data, your control.

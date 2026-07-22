@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-md",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Chat with cloud and local AI providers directly in Obsidian notes.",
   "main": "main.js",
   "type": "module",
