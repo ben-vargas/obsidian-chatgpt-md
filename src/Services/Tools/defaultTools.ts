@@ -10,6 +10,7 @@ interface DefaultToolsContext {
   settings: ChatGPT_MDSettings;
   vaultSearchService: VaultSearchService;
   webSearchService: WebSearchService;
+  resolveWebSearchCredential: () => string;
 }
 
 export function createDefaultTools(context: DefaultToolsContext): Map<string, RegisteredTool> {
@@ -63,7 +64,11 @@ function createFileReadTool({ app, vaultSearchService }: DefaultToolsContext): R
   };
 }
 
-function createWebSearchTool({ settings, webSearchService }: DefaultToolsContext): RegisteredTool {
+function createWebSearchTool({
+  settings,
+  webSearchService,
+  resolveWebSearchCredential,
+}: DefaultToolsContext): RegisteredTool {
   return {
     description:
       "Search the web for information on a topic. Returns titles, URLs, and snippets from search results. User will be asked to approve which results to share.",
@@ -82,7 +87,7 @@ function createWebSearchTool({ settings, webSearchService }: DefaultToolsContext
       return await webSearchService.searchWeb(
         args,
         settings.webSearchProvider,
-        settings.webSearchApiKey,
+        resolveWebSearchCredential(),
         settings.webSearchApiUrl
       );
     },

@@ -1,8 +1,18 @@
 import { jest } from "@jest/globals";
 import { SettingsService } from "./SettingsService";
+import { ApiAuthService } from "./ApiAuthService";
+import { getCredentialDefinitions } from "./Providers/ProviderRegistry";
+
+class FakeSecretComponent {
+  constructor(_app: never, _container: never) {}
+}
 
 describe("SettingsService effective frontmatter", () => {
-  function createService(note: Record<string, unknown>, agent: Record<string, unknown> = {}) {
+  function createService(
+    note: Record<string, unknown>,
+    agent: Record<string, unknown> = {},
+    apiAuthService?: ApiAuthService
+  ) {
     const plugin = { loadData: jest.fn(), saveData: jest.fn(), addSettingTab: jest.fn(), app: {} };
     const frontmatterManager = { readFrontmatter: jest.fn(() => note) };
     const agentService = {
@@ -15,7 +25,8 @@ describe("SettingsService effective frontmatter", () => {
       plugin as never,
       frontmatterManager as never,
       agentService as never,
-      notificationService as never
+      notificationService as never,
+      apiAuthService
     );
     return { service, plugin, agentService };
   }
@@ -60,6 +71,58 @@ describe("SettingsService effective frontmatter", () => {
     const config = await service.getFrontmatter({ file: {} } as never);
 
     expect(config.url).toBe("https://compatible.example/v1");
+  });
+
+  it("migrates and persists categories independently without changing unrelated settings", async () => {
+    const secrets = new Map<string, string>();
+    const storage = {
+      setSecret: jest.fn((id: string, value: string) => secrets.set(id, value)),
+      getSecret: jest.fn((id: string) => secrets.get(id) ?? null),
+      listSecrets: jest.fn(() => [...secrets.keys()]),
+    };
+    const auth = new ApiAuthService({ secretStorage: storage }, FakeSecretComponent);
+    const { service, plugin } = createService({}, {}, auth);
+    service.updateSettings({ apiKey: "synthetic-key", headingLevel: 4 });
+
+    await service.migrateCredentials();
+
+    expect(service.getSettings()).toMatchObject({ apiKey: "", headingLevel: 4 });
+    expect(service.getSettings().apiKeySecretId).toBe("chatgpt-md-openai-api-key");
+    expect(plugin.saveData).toHaveBeenCalledTimes(1);
+    expect(plugin.saveData.mock.calls[0][0]).not.toHaveProperty("apiKey");
+    expect(plugin.saveData.mock.calls[0][0]).toHaveProperty("apiKeySecretId", "chatgpt-md-openai-api-key");
+  });
+
+  it("retains plaintext when explicit insecure-copy deletion cannot be saved", async () => {
+    const definition = getCredentialDefinitions()[0];
+    const storage = {
+      setSecret: jest.fn(),
+      getSecret: jest.fn(() => "secure-value"),
+      listSecrets: jest.fn(() => ["selected"]),
+    };
+    const auth = new ApiAuthService({ secretStorage: storage }, FakeSecretComponent);
+    const { service, plugin } = createService({}, {}, auth);
+    service.updateSettings({ apiKey: "insecure-copy", apiKeySecretId: "selected" });
+    plugin.saveData.mockRejectedValueOnce(new Error("save failed"));
+
+    await expect(service.deleteInsecureCredentialCopy(definition)).rejects.toThrow("save failed");
+    expect(service.getSettings().apiKey).toBe("insecure-copy");
+  });
+
+  it("does not retry migration after eligible plaintext has been migrated", async () => {
+    const storage = {
+      setSecret: jest.fn(),
+      getSecret: jest.fn((id: string) => (id === "chatgpt-md-openai-api-key" ? "secure-value" : null)),
+      listSecrets: jest.fn(() => []),
+    };
+    const auth = new ApiAuthService({ secretStorage: storage }, FakeSecretComponent);
+    const { service, plugin } = createService({}, {}, auth);
+    service.updateSettings({ apiKey: "synthetic-key" });
+
+    await service.retryCredentialMigration();
+    await service.retryCredentialMigration();
+
+    expect(plugin.saveData).toHaveBeenCalledTimes(1);
   });
 
   it("loads persisted values once when explicitly requested", async () => {

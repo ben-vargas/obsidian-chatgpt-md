@@ -1,9 +1,20 @@
 import { parseSettingValue } from "./ChatGPT_MDSettingsTab";
-import { SettingDefinition } from "./settingsSchema";
+import { createSettingsSchema, SettingDefinition } from "./settingsSchema";
+import { DEFAULT_SETTINGS } from "src/Models/Config";
 
 function numericSetting(id: SettingDefinition["id"], name = "Value"): SettingDefinition {
   return { id, name, description: "", type: "text", valueType: "number", group: "Test" };
 }
+
+describe("credential settings schema", () => {
+  it("associates all six legacy fields with distinct reference fields", () => {
+    const credentials = createSettingsSchema(DEFAULT_SETTINGS).filter((setting) => setting.type === "credential");
+
+    expect(credentials).toHaveLength(6);
+    expect(new Set(credentials.map((setting) => setting.id)).size).toBe(6);
+    expect(new Set(credentials.map((setting) => setting.secretIdSetting)).size).toBe(6);
+  });
+});
 
 describe("parseSettingValue", () => {
   it("parses finite numeric values", () => {

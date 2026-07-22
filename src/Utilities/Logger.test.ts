@@ -35,11 +35,13 @@ describe("Logger", () => {
     const warn = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     Logger.warn("request failed", {
       apiKey: "secret",
+      secretId: "chatgpt-md-openai-api-key",
       nested: { Authorization: "Bearer secret", model: "gpt" },
     });
 
     expect(warn).toHaveBeenCalledWith("request failed", {
       apiKey: "[REDACTED]",
+      secretId: "[REDACTED]",
       nested: { Authorization: "[REDACTED]", model: "gpt" },
     });
   });

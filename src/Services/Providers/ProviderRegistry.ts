@@ -34,6 +34,21 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 export type ApiKeySettingKey = "apiKey" | "openrouterApiKey" | "anthropicApiKey" | "geminiApiKey" | "zaiApiKey";
+export type SecretIdSettingKey =
+  | "apiKeySecretId"
+  | "openrouterApiKeySecretId"
+  | "anthropicApiKeySecretId"
+  | "geminiApiKeySecretId"
+  | "zaiApiKeySecretId"
+  | "webSearchApiKeySecretId";
+
+export interface CredentialDefinition {
+  category: "openai" | "openrouter" | "anthropic" | "gemini" | "zai" | "web-search";
+  legacySetting: ApiKeySettingKey | "webSearchApiKey";
+  secretIdSetting: SecretIdSettingKey;
+  ownedSecretId: string;
+  label: string;
+}
 
 export type UrlSettingKey =
   "openaiUrl" | "openrouterUrl" | "ollamaUrl" | "lmstudioUrl" | "anthropicUrl" | "geminiUrl" | "zaiUrl";
@@ -44,6 +59,7 @@ export interface ProviderDefinition {
   requiresApiKey: boolean;
   local: boolean;
   apiKeySetting?: ApiKeySettingKey;
+  credential?: CredentialDefinition;
   urlSetting: UrlSettingKey;
   defaultUrl: string;
   defaultConfig: Record<string, unknown>;
@@ -75,6 +91,13 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     requiresApiKey: true,
     local: false,
     apiKeySetting: "apiKey",
+    credential: {
+      category: "openai",
+      legacySetting: "apiKey",
+      secretIdSetting: "apiKeySecretId",
+      ownedSecretId: "chatgpt-md-openai-api-key",
+      label: "OpenAI",
+    },
     urlSetting: "openaiUrl",
     defaultUrl: DEFAULT_OPENAI_CONFIG.url,
     defaultConfig: DEFAULT_OPENAI_CONFIG,
@@ -95,6 +118,13 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     requiresApiKey: true,
     local: false,
     apiKeySetting: "openrouterApiKey",
+    credential: {
+      category: "openrouter",
+      legacySetting: "openrouterApiKey",
+      secretIdSetting: "openrouterApiKeySecretId",
+      ownedSecretId: "chatgpt-md-openrouter-api-key",
+      label: "OpenRouter",
+    },
     urlSetting: "openrouterUrl",
     defaultUrl: DEFAULT_OPENROUTER_CONFIG.url,
     defaultConfig: DEFAULT_OPENROUTER_CONFIG,
@@ -133,6 +163,13 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     requiresApiKey: true,
     local: false,
     apiKeySetting: "anthropicApiKey",
+    credential: {
+      category: "anthropic",
+      legacySetting: "anthropicApiKey",
+      secretIdSetting: "anthropicApiKeySecretId",
+      ownedSecretId: "chatgpt-md-anthropic-api-key",
+      label: "Anthropic",
+    },
     urlSetting: "anthropicUrl",
     defaultUrl: DEFAULT_ANTHROPIC_CONFIG.url,
     defaultConfig: DEFAULT_ANTHROPIC_CONFIG,
@@ -151,6 +188,13 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     requiresApiKey: true,
     local: false,
     apiKeySetting: "geminiApiKey",
+    credential: {
+      category: "gemini",
+      legacySetting: "geminiApiKey",
+      secretIdSetting: "geminiApiKeySecretId",
+      ownedSecretId: "chatgpt-md-gemini-api-key",
+      label: "Gemini",
+    },
     urlSetting: "geminiUrl",
     defaultUrl: DEFAULT_GEMINI_CONFIG.url,
     defaultConfig: DEFAULT_GEMINI_CONFIG,
@@ -170,6 +214,13 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     requiresApiKey: true,
     local: false,
     apiKeySetting: "zaiApiKey",
+    credential: {
+      category: "zai",
+      legacySetting: "zaiApiKey",
+      secretIdSetting: "zaiApiKeySecretId",
+      ownedSecretId: "chatgpt-md-zai-api-key",
+      label: "Z.AI",
+    },
     urlSetting: "zaiUrl",
     defaultUrl: DEFAULT_ZAI_CONFIG.url,
     defaultConfig: DEFAULT_ZAI_CONFIG,
@@ -184,6 +235,21 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     }),
   },
 ] as const;
+
+export const WEB_SEARCH_CREDENTIAL: CredentialDefinition = {
+  category: "web-search",
+  legacySetting: "webSearchApiKey",
+  secretIdSetting: "webSearchApiKeySecretId",
+  ownedSecretId: "chatgpt-md-web-search-api-key",
+  label: "Web search",
+};
+
+export function getCredentialDefinitions(): readonly CredentialDefinition[] {
+  return [
+    ...PROVIDER_DEFINITIONS.flatMap((provider) => (provider.credential ? [provider.credential] : [])),
+    WEB_SEARCH_CREDENTIAL,
+  ];
+}
 
 export function getProviderDefinitions(): readonly ProviderDefinition[] {
   return PROVIDER_DEFINITIONS;

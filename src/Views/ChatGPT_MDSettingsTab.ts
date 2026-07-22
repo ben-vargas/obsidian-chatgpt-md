@@ -1,11 +1,16 @@
 import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
 import { ChatGPT_MDSettings } from "src/Models/Config";
+import { ApiAuthService, isValidApiKey, isValidSecretId } from "src/Services/ApiAuthService";
+import { CredentialDefinition, getCredentialDefinitions } from "src/Services/Providers/ProviderRegistry";
 import { COLLAPSIBLE_GROUPS, createSettingsSchema, SettingDefinition } from "./settingsSchema";
 
 interface SettingsProvider {
   settings: ChatGPT_MDSettings;
   updateSettings: (settings: Partial<ChatGPT_MDSettings>) => void;
   saveSettings: () => Promise<void>;
+  retryCredentialMigration: () => Promise<unknown>;
+  deleteInsecureCredentialCopy: (definition: CredentialDefinition) => Promise<boolean>;
+  apiAuthService: ApiAuthService;
 }
 
 const NUMERIC_RANGES: Partial<Record<keyof ChatGPT_MDSettings, { min: number; max: number }>> = {
@@ -48,6 +53,7 @@ export function parseSettingValue(schema: SettingDefinition, value: string | boo
 
 export class ChatGPT_MDSettingsTab extends PluginSettingTab {
   settingsProvider: SettingsProvider;
+  private displayInProgress = false;
 
   constructor(app: App, plugin: Plugin, settingsProvider: SettingsProvider) {
     super(app, plugin);
@@ -62,13 +68,30 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
   }
 
   display(): void {
+    void this.displayAfterMigration();
+  }
+
+  private async displayAfterMigration(): Promise<void> {
+    if (this.displayInProgress) return;
+    this.displayInProgress = true;
+    try {
+      await this.settingsProvider.retryCredentialMigration();
+    } catch {
+      new Notice("Some credentials could not be migrated. They remain available and will be retried.");
+    }
+
+    try {
+      this.renderSettings();
+    } finally {
+      this.displayInProgress = false;
+    }
+  }
+
+  private renderSettings(): void {
     const { containerEl } = this;
     containerEl.empty();
-
     const settingsSchema = createSettingsSchema(this.settingsProvider.settings);
-
     const { regularGroups, collapsibleGroups } = this.groupSettings(settingsSchema);
-
     this.renderPriorityGroups(containerEl, regularGroups);
     this.renderProviderGroups(containerEl, collapsibleGroups);
     this.renderRemainingGroups(containerEl, regularGroups);
@@ -168,9 +191,71 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     const setting = new Setting(container).setName(schema.name).setDesc(schema.description);
 
     if (schema.type === "text") this.addTextSetting(setting, schema);
+    if (schema.type === "credential") this.addCredentialSetting(setting, schema);
     if (schema.type === "textarea") this.addTextareaSetting(setting, schema);
     if (schema.type === "toggle") this.addToggleSetting(setting, schema);
     if (schema.type === "dropdown" && schema.options) this.addDropdownSetting(setting, schema);
+  }
+
+  private addCredentialSetting(setting: Setting, schema: SettingDefinition): void {
+    const SecretControl = this.settingsProvider.apiAuthService.getSecretComponentConstructor();
+    if (!SecretControl || !schema.secretIdSetting) {
+      this.addTextSetting(setting, schema);
+      return;
+    }
+
+    const persistedReference = this.settingsProvider.settings[schema.secretIdSetting];
+    const control = new SecretControl(this.app, setting.controlEl);
+    control.setValue(isValidSecretId(persistedReference) ? persistedReference : "");
+    control.onChange((value: unknown) => {
+      void this.saveSecretReference(schema.secretIdSetting!, value, schema.name);
+    });
+
+    const definition = getCredentialDefinitions().find((item) => item.legacySetting === schema.id);
+    if (definition) this.addInsecureCopyAction(setting, definition);
+  }
+
+  private addInsecureCopyAction(setting: Setting, definition: CredentialDefinition): void {
+    const legacy = this.settingsProvider.settings[definition.legacySetting];
+    if (
+      !isValidApiKey(legacy) ||
+      !this.settingsProvider.apiAuthService.hasValidReference(this.settingsProvider.settings, definition)
+    ) {
+      return;
+    }
+
+    setting.setDesc(
+      `${definition.label} has an insecure plaintext copy in plugin data. The secure credential is already authoritative.`
+    );
+    setting.addButton((button) =>
+      button
+        .setButtonText("Delete insecure copy")
+        .setWarning()
+        .onClick(async () => {
+          if (!window.confirm(`Delete the insecure ${definition.label} plaintext copy?`)) return;
+          try {
+            if (await this.settingsProvider.deleteInsecureCredentialCopy(definition)) this.display();
+          } catch {
+            new Notice("The insecure copy could not be deleted and was retained.");
+          }
+        })
+    );
+  }
+
+  private async saveSecretReference(key: keyof ChatGPT_MDSettings, value: unknown, label: string): Promise<void> {
+    if (value !== "" && !isValidSecretId(value)) {
+      new Notice(`Invalid credential selection for ${label}`);
+      return;
+    }
+
+    const previous = this.settingsProvider.settings[key];
+    this.updateSetting(key, value as ChatGPT_MDSettings[typeof key]);
+    try {
+      await this.settingsProvider.saveSettings();
+    } catch {
+      this.updateSetting(key, previous as ChatGPT_MDSettings[typeof key]);
+      new Notice(`Could not save credential selection for ${label}`);
+    }
   }
 
   private addTextSetting(setting: Setting, schema: SettingDefinition): void {

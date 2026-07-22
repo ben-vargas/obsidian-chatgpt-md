@@ -1,6 +1,7 @@
 import { AI_SERVICES } from "src/Constants";
 import {
   createProviderAdapters,
+  getCredentialDefinitions,
   getProviderDefinition,
   getProviderDefinitions,
   getProviderFactory,
@@ -25,6 +26,20 @@ describe("ProviderRegistry", () => {
       expect(provider.defaultConfig).toMatchObject({ aiService: provider.id, url: provider.defaultUrl });
       expect(provider.requiresApiKey).toBe(Boolean(provider.apiKeySetting));
       expect(typeof provider.local).toBe("boolean");
+    }
+  });
+
+  it("defines complete, unique, stable metadata for every credential category", () => {
+    const credentials = getCredentialDefinitions();
+
+    expect(credentials).toHaveLength(6);
+    expect(new Set(credentials.map((item) => item.legacySetting)).size).toBe(6);
+    expect(new Set(credentials.map((item) => item.secretIdSetting)).size).toBe(6);
+    expect(new Set(credentials.map((item) => item.ownedSecretId)).size).toBe(6);
+    for (const credential of credentials) {
+      expect(credential.ownedSecretId).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+      expect(DEFAULT_SETTINGS[credential.legacySetting]).toBe("");
+      expect(DEFAULT_SETTINGS[credential.secretIdSetting]).toBe("");
     }
   });
 

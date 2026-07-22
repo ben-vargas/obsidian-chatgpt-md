@@ -66,6 +66,8 @@ export default [
       "!jest.config.js", // And jest config
       "dist/",
       "build/",
+      "coverage/",
+      "**/*.min.js",
       "**/*.test.ts", // Ignore test files from strict rules
       "src/__mocks__/", // Ignore mock files
     ],

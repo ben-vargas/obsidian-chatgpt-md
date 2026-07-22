@@ -175,7 +175,7 @@ agent: WritingCoach      # Apply an agent by name
 
 ### Global Defaults (Settings → ChatGPT MD)
 
-- **API Keys** — One per provider
+- **API Keys** — One secure Obsidian credential per cloud provider (with legacy text fields on older Obsidian versions)
 - **Default Model** — Which AI to use by default
 - **Folders** — Where to save chats, templates, agents
 - **Stream Mode** — See responses appear word by word
@@ -219,8 +219,14 @@ A: A reusable AI persona. Like having different experts on call—writing coach 
 - No internet required
 - Completely private
 
+**Credentials:**
+- When both Obsidian SecretStorage and its native secret control are available, provider and web-search keys are stored as vault-local Obsidian credentials; plugin data contains only opaque references.
+- Existing plaintext keys migrate automatically on plugin load. Failed migrations retain a usable plaintext key and retry on the next load or settings-tab opening.
+- If a valid secure credential and plaintext copy coexist, settings explains the risk and offers an explicit **Delete insecure copy** action. The copy is retained if saving fails.
+- Replacing or clearing a selection removes only this plugin's reference. Old credentials remain available for management in Obsidian.
+- Older or partially capable Obsidian versions keep the legacy plaintext controls and behavior. After migrating and then downgrading, re-enter keys because secure references are never sent as credentials.
+
 **Always:**
-- API keys are stored in Obsidian's local plugin data (not an operating-system keychain)
 - Chat messages and automatically expanded `[[linked notes]]` are sent to the selected provider
 - AI tools require approval before execution, and vault/web search results must be selected before sharing
 - Custom web-search endpoints receive your query and any configured bearer credential

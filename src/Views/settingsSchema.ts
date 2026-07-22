@@ -15,8 +15,9 @@ export interface SettingDefinition {
   id: keyof ChatGPT_MDSettings;
   name: string;
   description: string;
-  type: "text" | "textarea" | "toggle" | "dropdown";
+  type: "text" | "textarea" | "toggle" | "dropdown" | "credential";
   valueType?: "string" | "number";
+  secretIdSetting?: keyof ChatGPT_MDSettings;
   placeholder?: string;
   options?: Record<string, string>;
   group: string;
@@ -47,7 +48,8 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     id: "apiKey",
     name: "OpenAI API Key",
     description: "API Key for OpenAI",
-    type: "text",
+    type: "credential",
+    secretIdSetting: "apiKeySecretId",
     placeholder: "your openAI API Key",
     group: "API Keys",
   },
@@ -55,7 +57,8 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     id: "openrouterApiKey",
     name: "OpenRouter.ai API Key",
     description: "API Key for OpenRouter.ai",
-    type: "text",
+    type: "credential",
+    secretIdSetting: "openrouterApiKeySecretId",
     placeholder: "your openRouter API Key",
     group: "API Keys",
   },
@@ -63,7 +66,8 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     id: "anthropicApiKey",
     name: "Anthropic API Key",
     description: "API Key for Anthropic (Claude)",
-    type: "text",
+    type: "credential",
+    secretIdSetting: "anthropicApiKeySecretId",
     placeholder: "your Anthropic API Key",
     group: "API Keys",
   },
@@ -71,7 +75,8 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     id: "geminiApiKey",
     name: "Gemini API Key",
     description: "API Key for Google Gemini (Google AI Studio)",
-    type: "text",
+    type: "credential",
+    secretIdSetting: "geminiApiKeySecretId",
     placeholder: "your Gemini API Key",
     group: "API Keys",
   },
@@ -80,7 +85,8 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     name: "Z.AI API Key",
     description:
       "API Key for Z.AI (GLM models). Works with both Standard API and Coding Plan. Get your key at https://z.ai",
-    type: "text",
+    type: "credential",
+    secretIdSetting: "zaiApiKeySecretId",
     placeholder: "your Z.AI API Key",
     group: "API Keys",
   },
@@ -449,7 +455,8 @@ const SETTINGS_SCHEMA: SettingDefinition[] = [
     id: "webSearchApiKey",
     name: "Brave Search API Key",
     description: "API key for Brave Search.",
-    type: "text",
+    type: "credential",
+    secretIdSetting: "webSearchApiKeySecretId",
     placeholder: "your Brave Search API key",
     group: "Tool Calling",
   },

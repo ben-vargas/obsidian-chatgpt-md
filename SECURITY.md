@@ -19,7 +19,12 @@ The maintainers will acknowledge and triage reports as availability permits and 
 
 ## Data and credential model
 
-- Provider and web-search API keys are stored in Obsidian's local plugin data. They are not stored in an operating-system keychain.
+- Secure mode requires both Obsidian's vault-local `SecretStorage` and native secret settings control. Runtime capability detection, rather than an Obsidian version check, determines the mode.
+- In secure mode, provider and web-search secrets are managed by Obsidian. Plugin `data.json` stores opaque references only after successful migration.
+- Plaintext keys migrate on plugin load and retry when settings opens. A failed storage or persistence step retains the plaintext key for authentication and later retry.
+- A plaintext copy beside a valid reference is removed only through the explained **Delete insecure copy** action and only after persistence succeeds.
+- Replacing or clearing a reference does not delete the old Obsidian credential; its lifecycle remains user-managed.
+- If either secure capability is unavailable, the plugin uses its legacy plaintext fields and controls. A downgrade after migration may require keys to be re-entered; reference IDs are never used as credentials.
 - Cloud-provider chats send conversation text and expanded linked-note content to the selected provider.
 - Ollama and LM Studio remain local only when their configured URLs point to local services.
 - AI tools require approval before execution. Vault and web-search results require selection before their content is sent back to the model.

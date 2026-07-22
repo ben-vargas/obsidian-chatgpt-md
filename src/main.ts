@@ -25,6 +25,7 @@ export default class ChatGPT_MD extends Plugin {
     const settingsService = this.services.settingsService;
     await settingsService.loadSettings();
     await settingsService.migrateSettings();
+    await settingsService.migrateCredentials();
 
     // Add settings tab after migrations have completed
     await settingsService.addSettingTab();

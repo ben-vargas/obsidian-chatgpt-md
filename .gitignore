@@ -14,6 +14,7 @@ node_modules
 npm-debug.log
 yarn-error.log
 yarn-debug.log
+*.log
 
 # Exclude sourcemaps
 *.map
@@ -31,15 +32,16 @@ coverage/
 # obsidian
 data.json
 
-# Exclude macOS Finder (System Explorer) View States
+# Exclude OS and temporary files
 .DS_Store
 .AppleDouble
 .LSOverride
+Thumbs.db
+*.tmp
+*.swp
 
 # Environment variables
-.env
-.env.local
-.env.*.local
+.env*
 
 # Build output
 main.js
