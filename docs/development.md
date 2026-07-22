@@ -1,5 +1,12 @@
 # Development Guide
 
+## Prerequisites
+
+- Node.js 22 or newer (AI SDK 7 requirement); Node.js 24 LTS is used in CI
+- Yarn 1.x
+
+AI SDK 7 packages are ESM-only. Source code and build scripts use ESM imports, while esbuild bundles dependencies into the CommonJS `main.js` format required by Obsidian.
+
 ## Build and Development Commands
 
 ```bash

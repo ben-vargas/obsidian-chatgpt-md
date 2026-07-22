@@ -9,7 +9,7 @@ import { LanguageModel } from "ai";
 import { OpenAIProvider } from "@ai-sdk/openai";
 import { OpenAICompatibleProvider } from "@ai-sdk/openai-compatible";
 import { AnthropicProvider } from "@ai-sdk/anthropic";
-import { GoogleGenerativeAIProvider } from "@ai-sdk/google";
+import { GoogleProvider } from "@ai-sdk/google";
 import { OpenRouterProvider } from "@openrouter/ai-sdk-provider";
 
 /**
@@ -87,11 +87,7 @@ export interface IAiApiService {
  * Type definition for all supported AI providers
  */
 export type AiProvider =
-  | OpenAIProvider
-  | OpenAICompatibleProvider
-  | AnthropicProvider
-  | GoogleGenerativeAIProvider
-  | OpenRouterProvider;
+  OpenAIProvider | OpenAICompatibleProvider | AnthropicProvider | GoogleProvider | OpenRouterProvider;
 
 /**
  * Ollama model interface

@@ -80,7 +80,7 @@ type AiProvider =
   | OpenAIProvider
   | OpenAICompatibleProvider
   | AnthropicProvider
-  | GoogleGenerativeAIProvider
+  | GoogleProvider
   | OpenRouterProvider;
 ```
 

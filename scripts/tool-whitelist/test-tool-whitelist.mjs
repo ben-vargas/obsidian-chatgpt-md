@@ -15,7 +15,7 @@
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGoogle } from "@ai-sdk/google";
 import { generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
 import { readFileSync } from "fs";
@@ -109,7 +109,7 @@ function createProvider(providerType) {
       if (!API_KEYS.gemini) {
         throw new Error("Gemini API key not found in data.json");
       }
-      return createGoogleGenerativeAI({ apiKey: API_KEYS.gemini });
+      return createGoogle({ apiKey: API_KEYS.gemini });
 
     default:
       throw new Error(`Unknown provider: ${providerType}`);

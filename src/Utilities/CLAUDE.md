@@ -61,6 +61,13 @@ Pure helper functions extracted from services for reusability and testability. F
 - `getDefaultConfigForService(service)` - Get default config for AI service
 - `getDefaultModelForService(service)` - Get default model for AI service
 
+### PromptHelpers.ts
+
+**AI SDK prompt conversion**
+
+- `prepareAiSdkPrompt(messages)` - Extracts trusted system/developer content into AI SDK 7 `instructions`
+- Returns a conversation containing only user and assistant messages
+
 ### ProviderHelpers.ts
 
 **AI provider utilities**

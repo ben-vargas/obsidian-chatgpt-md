@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGoogle } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -148,7 +148,7 @@ async function testModelToolSupport(modelId) {
         break;
 
       case "gemini":
-        const gemini = createGoogleGenerativeAI({ apiKey: apiKeys.gemini });
+        const gemini = createGoogle({ apiKey: apiKeys.gemini });
         model = gemini(modelName);
         break;
 

@@ -52,8 +52,6 @@ Contract each adapter must implement:
 - `getDefaultBaseUrl()` - Default API endpoint
 - `getAuthHeaders(apiKey)` - Authentication headers
 - `fetchModels(url, apiKey, settings, makeGetRequest)` - Model listing
-- `getSystemMessageRole()` - "system" or "developer" (OpenAI uses "developer")
-- `supportsSystemField()` - Anthropic: true (dedicated system field), others: false
 - `supportsToolCalling()` - Tool calling support
 - `requiresApiKey()` - Local providers (Ollama, LM Studio): false
 - `extractModelName(modelId)` - Strip provider prefix
@@ -65,8 +63,6 @@ Contract each adapter must implement:
 
 Default implementations:
 
-- `getSystemMessageRole()` → "system"
-- `supportsSystemField()` → false
 - `supportsToolCalling()` → true
 - `requiresApiKey()` → true
 - `extractModelName()` - Remove provider prefix
@@ -79,7 +75,7 @@ Default implementations:
 ### OpenAIAdapter.ts
 
 - Default URL: `https://api.openai.com`
-- System role: `"developer"` (OpenAI-specific for GPT-4+)
+- System/developer content is passed through AI SDK 7's top-level `instructions` option
 - Auth: `Authorization: Bearer {key}`
 - Uses Vercel AI SDK `createOpenAI()`
 - `getApiPathSuffix()` → "/v1"
@@ -87,7 +83,7 @@ Default implementations:
 ### AnthropicAdapter.ts
 
 - Default URL: `https://api.anthropic.com`
-- `supportsSystemField()` → true (dedicated system field in API)
+- AI SDK translates top-level `instructions` to Anthropic's dedicated system field
 - Auth: `x-api-key: {key}`, `anthropic-version: 2023-06-01`
 - Uses Vercel AI SDK `createAnthropic()`
 
@@ -95,7 +91,7 @@ Default implementations:
 
 - Default URL: `https://generativelanguage.googleapis.com`
 - Auth: API key in URL query parameter (`?key={apiKey}`)
-- Uses Vercel AI SDK `createGoogleGenerativeAI()`
+- Uses Vercel AI SDK `createGoogle()`
 
 ### OllamaAdapter.ts
 

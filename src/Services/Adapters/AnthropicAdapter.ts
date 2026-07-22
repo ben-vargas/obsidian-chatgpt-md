@@ -70,8 +70,4 @@ export class AnthropicAdapter extends BaseProviderAdapter {
       return [];
     }
   }
-
-  supportsSystemField(): boolean {
-    return true; // Anthropic supports system field in payload
-  }
 }

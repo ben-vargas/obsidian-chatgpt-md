@@ -19,9 +19,15 @@ Uses Vercel AI SDK (`ai` package) with provider factories:
 
 - `createOpenAI` - OpenAI
 - `createAnthropic` - Anthropic
-- `createGoogleGenerativeAI` - Gemini
+- `createGoogle` - Gemini
 - `createOpenRouter` - OpenRouter
 - `createOpenAICompatible` - Ollama, LM Studio, Z.AI
+
+AI SDK 7 prompt handling:
+
+- `prepareAiSdkPrompt()` moves plugin `system`/`developer` messages into the top-level `instructions` option
+- Only `user` and `assistant` messages are passed through `messages`
+- Instructions are preserved for streaming, non-streaming, and tool-result continuation calls
 
 **Provider selection**: Based on model prefix (e.g., `ollama@llama3.2`, `openrouter@anthropic/claude-3-5-sonnet`)
 
@@ -171,8 +177,8 @@ Model prefix parsing:
 
 **Orchestrates tool calling with approval workflow**
 
-- `getToolsForRequest()` - Get enabled tools for AI request (vault_search, file_read, web_search)
-- `handleToolCalls()` - Process AI tool call requests, show approval modals
+- `getToolsForRequest()` - Get enabled tool declarations for AI requests (vault_search, file_read, web_search); executor functions are deliberately stripped so AI SDK cannot run tools before approval
+- `handleToolCalls()` - Process AI tool call requests, show approval modals, then execute approved tools locally
 - `processToolResults()` - Format results for continuation
 
 Coordinates VaultSearchService and WebSearchService with approval modals.

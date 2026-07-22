@@ -82,8 +82,4 @@ export class OpenAIAdapter extends BaseProviderAdapter {
 
     return isGenerationModel && !isExcluded;
   }
-
-  getSystemMessageRole(): "system" | "developer" {
-    return "developer"; // OpenAI prefers developer role for system messages
-  }
 }

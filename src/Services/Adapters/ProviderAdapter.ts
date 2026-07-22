@@ -79,19 +79,6 @@ export interface ProviderAdapter {
   ): Promise<string[]>;
 
   /**
-   * The role to use for system messages in the messages array
-   * OpenAI uses 'developer', most others use 'system'
-   */
-  getSystemMessageRole(): "system" | "developer";
-
-  /**
-   * Whether this provider supports a 'system' field in the API payload
-   * Anthropic: true (has dedicated system field)
-   * OpenAI/Ollama/etc: false (system is part of messages array)
-   */
-  supportsSystemField(): boolean;
-
-  /**
    * Whether this provider supports tool calling (function calling)
    */
   supportsToolCalling(): boolean;

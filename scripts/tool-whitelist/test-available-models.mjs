@@ -19,7 +19,7 @@
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGoogle } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText, tool, zodSchema } from "ai";
@@ -203,7 +203,7 @@ async function testModel(modelId) {
     } else if (provider === "anthropic") {
       providerInstance = createAnthropic({ apiKey: config.apiKeys.anthropic });
     } else if (provider === "gemini") {
-      providerInstance = createGoogleGenerativeAI({ apiKey: config.apiKeys.gemini });
+      providerInstance = createGoogle({ apiKey: config.apiKeys.gemini });
     } else if (provider === "openrouter") {
       providerInstance = createOpenRouter({ apiKey: config.apiKeys.openrouter });
     } else if (provider === "ollama") {

@@ -10,13 +10,14 @@ import { ToolService } from "./ToolService";
 import { StreamingHandler } from "./StreamingHandler";
 import { isModelWhitelisted } from "./ToolSupportDetector";
 import { insertAssistantHeader } from "src/Utilities/ResponseHelpers";
+import { prepareAiSdkPrompt } from "src/Utilities/PromptHelpers";
 import { AiProviderInstance, IAiApiService, ProviderFactory, StreamingResponse } from "src/Types/AiTypes";
 
 // AI SDK providers
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGoogle } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, LanguageModel, streamText } from "ai";
 
@@ -427,7 +428,7 @@ export class AiProviderService implements IAiApiService {
       case "anthropic":
         return createAnthropic;
       case "gemini":
-        return createGoogleGenerativeAI;
+        return createGoogle;
       case "ollama":
       case "lmstudio":
       case "zai":
@@ -545,14 +546,12 @@ export class AiProviderService implements IAiApiService {
     toolService?: ToolService,
     settings?: ChatGPT_MDSettings
   ): Promise<{ fullString: string; mode: string }> {
-    const aiSdkMessages = messages.map((msg) => ({
-      role: msg.role as "user" | "assistant" | "system",
-      content: msg.content,
-    }));
+    const { instructions, messages: aiSdkMessages } = prepareAiSdkPrompt(messages);
 
     const request: Parameters<typeof generateText>[0] = {
       model,
       messages: aiSdkMessages,
+      ...(instructions ? { instructions } : {}),
     };
 
     const toolsAvailable = tools && typeof tools === "object" && Object.keys(tools as object).length > 0;
@@ -585,12 +584,13 @@ export class AiProviderService implements IAiApiService {
       const continuationResponse = await generateText({
         model,
         messages: updatedMessages,
+        ...(instructions ? { instructions } : {}),
       });
 
-      return { fullString: continuationResponse.text, mode: "non-streaming" };
+      return { fullString: continuationResponse.text.trimStart(), mode: "non-streaming" };
     }
 
-    return { fullString: response.text, mode: "non-streaming" };
+    return { fullString: response.text.trimStart(), mode: "non-streaming" };
   }
 
   /**
@@ -610,7 +610,7 @@ export class AiProviderService implements IAiApiService {
   ): Promise<StreamingResponse> {
     console.log(`[ChatGPT MD] callAiSdkStreamText called`, { modelName, messageCount: messages.length });
 
-    const { aiSdkMessages, handler, abortController } = this.setupStreamingContext(
+    const { instructions, aiSdkMessages, handler, abortController } = this.setupStreamingContext(
       messages,
       editor,
       headingPrefix,
@@ -619,7 +619,15 @@ export class AiProviderService implements IAiApiService {
     );
 
     try {
-      const request = this.buildStreamRequest(model, aiSdkMessages, abortController.signal, tools, modelName, settings);
+      const request = this.buildStreamRequest(
+        model,
+        aiSdkMessages,
+        instructions,
+        abortController.signal,
+        tools,
+        modelName,
+        settings
+      );
 
       console.log(`[ChatGPT MD] Starting streamText with request`, {
         model: request.model,
@@ -632,27 +640,28 @@ export class AiProviderService implements IAiApiService {
 
       console.log(`[ChatGPT MD] streamText initiated, consuming stream...`);
       let fullText = await this.consumeStream(result, handler);
-      const finalResult = await result;
+      const finishReason = await result.finishReason;
 
       console.log(`[ChatGPT MD] Stream completed`, { fullTextLength: fullText.length });
 
-      this.checkForStreamError(finalResult);
+      this.checkForStreamError(finishReason);
 
-      // Handle tool calls if present
-      if (toolService && finalResult?.toolCalls) {
-        const toolCalls = await finalResult.toolCalls;
-        if (toolCalls?.length > 0) {
-          fullText = await this.handleStreamToolCalls(
-            toolCalls,
-            fullText,
-            handler,
-            editor,
-            model,
-            aiSdkMessages,
-            toolService,
-            modelName
-          );
-        }
+      // AI SDK 7 toolCalls contains calls accumulated across all steps. This
+      // request intentionally runs a single model step before the plugin's
+      // privacy approval flow handles any requested tools.
+      const toolCalls = toolService ? await result.toolCalls : [];
+      if (toolService && toolCalls.length > 0) {
+        fullText = await this.handleStreamToolCalls(
+          toolCalls,
+          fullText,
+          handler,
+          editor,
+          model,
+          aiSdkMessages,
+          instructions,
+          toolService,
+          modelName
+        );
       }
 
       if (!setAtCursor) {
@@ -679,7 +688,7 @@ export class AiProviderService implements IAiApiService {
     modelName: string,
     setAtCursor?: boolean
   ) {
-    const aiSdkMessages = this.prepareAiSdkMessages(messages);
+    const { instructions, messages: aiSdkMessages } = prepareAiSdkPrompt(messages);
     const cursorPositions = insertAssistantHeader(editor, headingPrefix, modelName);
 
     const abortController = new AbortController();
@@ -688,7 +697,7 @@ export class AiProviderService implements IAiApiService {
     const initialCursor = setAtCursor ? cursorPositions.initialCursor : cursorPositions.newCursor;
     const handler = new StreamingHandler(editor, initialCursor, setAtCursor);
 
-    return { aiSdkMessages, handler, abortController };
+    return { instructions, aiSdkMessages, handler, abortController };
   }
 
   /**
@@ -703,24 +712,12 @@ export class AiProviderService implements IAiApiService {
   }
 
   /**
-   * Prepare messages for AI SDK format
-   */
-  private prepareAiSdkMessages(messages: Message[]): Array<{
-    role: "user" | "assistant" | "system";
-    content: string;
-  }> {
-    return messages.map((msg) => ({
-      role: msg.role as "user" | "assistant" | "system",
-      content: msg.content,
-    }));
-  }
-
-  /**
    * Build stream request with optional tools
    */
   private buildStreamRequest(
     model: LanguageModel,
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
+    messages: Array<{ role: "user" | "assistant"; content: string }>,
+    instructions: string | undefined,
     abortSignal: AbortSignal,
     tools: unknown,
     modelName: string,
@@ -729,6 +726,7 @@ export class AiProviderService implements IAiApiService {
     const request: Parameters<typeof streamText>[0] = {
       model,
       messages,
+      ...(instructions ? { instructions } : {}),
       abortSignal,
     };
 
@@ -747,6 +745,7 @@ export class AiProviderService implements IAiApiService {
    */
   private async consumeStream(streamResult: any, handler: StreamingHandler): Promise<string> {
     let text = "";
+    let hasResponseContent = false;
     const { textStream } = streamResult;
 
     console.log(`[ChatGPT MD] consumeStream starting iteration...`);
@@ -759,8 +758,15 @@ export class AiProviderService implements IAiApiService {
           console.log(`[ChatGPT MD] Stream aborted after ${chunkCount} chunks`);
           break;
         }
-        text += textPart;
-        handler.appendText(textPart);
+
+        const responsePart = hasResponseContent ? textPart : textPart.trimStart();
+        if (!responsePart) {
+          continue;
+        }
+
+        hasResponseContent = true;
+        text += responsePart;
+        handler.appendText(responsePart);
       }
       console.log(`[ChatGPT MD] consumeStream completed with ${chunkCount} chunks, total length: ${text.length}`);
     } catch (streamError) {
@@ -775,13 +781,8 @@ export class AiProviderService implements IAiApiService {
   /**
    * Check if stream finished with error
    */
-  private async checkForStreamError(finalResult: any): Promise<void> {
-    const finishReason = await finalResult?.finishReason;
+  private checkForStreamError(finishReason: string): void {
     if (finishReason === "error") {
-      const error = (finalResult as any).error;
-      if (error) {
-        throw error;
-      }
       throw new Error("Stream finished with error");
     }
   }
@@ -795,7 +796,8 @@ export class AiProviderService implements IAiApiService {
     handler: StreamingHandler,
     editor: Editor,
     model: LanguageModel,
-    aiSdkMessages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
+    aiSdkMessages: Array<{ role: "user" | "assistant"; content: string }>,
+    instructions: string | undefined,
     toolService: ToolService,
     modelName: string
   ): Promise<string> {
@@ -817,7 +819,7 @@ export class AiProviderService implements IAiApiService {
     // Continue with tool results
     const updatedMessages = [...aiSdkMessages, { role: "assistant" as const, content: fullText }, ...contextMessages];
 
-    return this.streamContinuation(model, updatedMessages, handler, fullText);
+    return this.streamContinuation(model, updatedMessages, instructions, handler, fullText);
   }
 
   /**
@@ -825,11 +827,16 @@ export class AiProviderService implements IAiApiService {
    */
   private async streamContinuation(
     model: LanguageModel,
-    messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
+    messages: Array<{ role: "user" | "assistant"; content: string }>,
+    instructions: string | undefined,
     handler: StreamingHandler,
     initialText: string
   ): Promise<string> {
-    const continuationResult = streamText({ model, messages });
+    const continuationResult = streamText({
+      model,
+      messages,
+      ...(instructions ? { instructions } : {}),
+    });
 
     const continuationCursor = handler.getCursor();
     handler.reset(continuationCursor);
@@ -844,8 +851,8 @@ export class AiProviderService implements IAiApiService {
         handler.appendText(textPart);
       }
 
-      const continuationFinalResult = await continuationResult;
-      this.checkForStreamError(continuationFinalResult);
+      const finishReason = await continuationResult.finishReason;
+      this.checkForStreamError(finishReason);
 
       return fullText;
     } finally {

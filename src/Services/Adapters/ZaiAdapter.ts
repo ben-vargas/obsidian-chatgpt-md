@@ -106,23 +106,6 @@ export class ZaiAdapter extends BaseProviderAdapter {
     return this.KNOWN_MODELS.map((model) => this.prefixModelId(model)).sort();
   }
 
-  /**
-   * Whether this provider supports the system field (Anthropic-style)
-   * Returns true for Anthropic-compatible endpoint
-   */
-  supportsSystemField(): boolean {
-    // This is called without URL context, so we default to false (OpenAI behavior)
-    // The actual system field handling happens in the request building
-    return false;
-  }
-
-  /**
-   * Check if system field is supported for a specific URL
-   */
-  supportsSystemFieldForUrl(url: string): boolean {
-    return this.isAnthropicMode(url);
-  }
-
   supportsToolCalling(): boolean {
     return true; // Both Z.AI API modes support tool calling
   }

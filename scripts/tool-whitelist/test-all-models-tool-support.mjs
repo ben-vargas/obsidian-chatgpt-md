@@ -26,7 +26,7 @@
 
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGoogle } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { generateText, tool, zodSchema } from "ai";
 import { z } from "zod";
@@ -101,7 +101,7 @@ async function testModel(modelInfo) {
     } else if (provider === "anthropic") {
       providerInstance = createAnthropic({ apiKey: apiKeys.anthropic });
     } else if (provider === "gemini") {
-      providerInstance = createGoogleGenerativeAI({ apiKey: apiKeys.gemini });
+      providerInstance = createGoogle({ apiKey: apiKeys.gemini });
     } else if (provider === "openrouter") {
       providerInstance = createOpenRouter({ apiKey: apiKeys.openrouter });
     } else {

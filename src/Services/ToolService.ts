@@ -204,21 +204,30 @@ export class ToolService {
     const allTools = this.getAllTools();
     const enabledTools: Record<string, any> = {};
 
-    // Vault tools - always available when tool calling is enabled
+    // Only expose tool declarations to AI SDK. Registered executors stay in
+    // this service and run after the plugin's explicit approval flow. Passing
+    // `execute` to AI SDK would execute the tool immediately when the model
+    // requests it, before the user has approved access.
     if (allTools.vault_search) {
-      enabledTools.vault_search = allTools.vault_search;
+      enabledTools.vault_search = this.toAiSdkToolDeclaration(allTools.vault_search);
     }
     if (allTools.file_read) {
-      enabledTools.file_read = allTools.file_read;
+      enabledTools.file_read = this.toAiSdkToolDeclaration(allTools.file_read);
     }
 
     // Web search - only if properly configured
     if (allTools.web_search && this.isWebSearchAvailable(settings)) {
-      enabledTools.web_search = allTools.web_search;
+      enabledTools.web_search = this.toAiSdkToolDeclaration(allTools.web_search);
     }
 
     // Return undefined if no tools are enabled (prevents passing empty object to AI SDK)
     return Object.keys(enabledTools).length > 0 ? enabledTools : undefined;
+  }
+
+  private toAiSdkToolDeclaration(toolDefinition: RegisteredTool): Omit<RegisteredTool, "execute"> {
+    const declaration: Partial<RegisteredTool> = { ...toolDefinition };
+    delete declaration.execute;
+    return declaration as Omit<RegisteredTool, "execute">;
   }
 
   // ========== Tool Orchestration and Approval ==========

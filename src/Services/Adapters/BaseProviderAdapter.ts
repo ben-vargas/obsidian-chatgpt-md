@@ -30,22 +30,6 @@ export abstract class BaseProviderAdapter implements ProviderAdapter {
   ): Promise<string[]>;
 
   /**
-   * Get the system message role for this provider
-   * Default: "system" (OpenAI overrides to "developer")
-   */
-  getSystemMessageRole(): "system" | "developer" {
-    return "system";
-  }
-
-  /**
-   * Whether this provider supports a system field in the API payload
-   * Default: false (Anthropic overrides to true)
-   */
-  supportsSystemField(): boolean {
-    return false;
-  }
-
-  /**
    * Whether this provider supports tool calling
    * Default: true
    */
