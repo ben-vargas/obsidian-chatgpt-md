@@ -1,7 +1,8 @@
 # ChatGPT MD Changelog
 
-## Unreleased - Secure API Key Storage
+## v3.2.1 - Mobile Compatibility and Secure API Key Storage
 
+- Fixes plugin startup on Android by building against browser-safe dependency entry points and excluding Node-only runtime imports from the mobile bundle.
 - Stores provider and web-search API keys in Obsidian's vault-local secret storage when both storage and native credential controls are available.
 - Migrates existing plaintext keys safely on load and retries failed categories when settings opens without interrupting authentication.
 - Adds an explicit **Delete insecure copy** action when a valid secure credential and plaintext copy coexist.
