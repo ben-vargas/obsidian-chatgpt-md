@@ -53,40 +53,35 @@ export abstract class BaseApprovalModal<TDecision> extends Modal {
    * Render modal header with title
    */
   protected renderHeader(container: HTMLElement): void {
-    const header = container.createEl("h2", { text: this.getModalTitle() });
-    header.style.marginBottom = "12px";
-    header.style.fontWeight = "600";
+    container.createEl("h2", { text: this.getModalTitle(), cls: "chatgpt-md-modal-header" });
   }
 
   /**
    * Render description text
    */
   protected renderDescription(container: HTMLElement): void {
-    const desc = container.createEl("p", { text: this.getDescription() });
-    desc.style.marginBottom = "12px";
-    desc.style.opacity = "0.7";
+    container.createEl("p", { text: this.getDescription(), cls: "chatgpt-md-modal-description" });
   }
 
   /**
    * Render select/deselect all buttons
    */
   protected renderSelectAllButtons(container: HTMLElement): void {
-    const buttonRow = container.createDiv();
-    buttonRow.style.display = "flex";
-    buttonRow.style.gap = "8px";
-    buttonRow.style.marginBottom = "16px";
+    const buttonRow = container.createDiv({ cls: "chatgpt-md-modal-button-row" });
 
-    const selectAllBtn = buttonRow.createEl("button", { text: "Select All" });
-    this.styleSecondaryButton(selectAllBtn);
-    selectAllBtn.style.flex = "1";
+    const selectAllBtn = buttonRow.createEl("button", {
+      text: "Select All",
+      cls: "chatgpt-md-modal-btn-secondary chatgpt-md-modal-btn-equal",
+    });
     selectAllBtn.onclick = () => {
       this.setAllSelections(true);
       this.refreshSelectionItems();
     };
 
-    const deselectAllBtn = buttonRow.createEl("button", { text: "Deselect All" });
-    this.styleSecondaryButton(deselectAllBtn);
-    deselectAllBtn.style.flex = "1";
+    const deselectAllBtn = buttonRow.createEl("button", {
+      text: "Deselect All",
+      cls: "chatgpt-md-modal-btn-secondary chatgpt-md-modal-btn-equal",
+    });
     deselectAllBtn.onclick = () => {
       this.setAllSelections(false);
       this.refreshSelectionItems();
@@ -116,26 +111,14 @@ export abstract class BaseApprovalModal<TDecision> extends Modal {
    * Render control note with styling
    */
   protected renderControlNote(container: HTMLElement): void {
-    const note = container.createDiv({ text: this.getControlNoteText() });
-    note.style.padding = "12px";
-    note.style.backgroundColor = "var(--background-secondary)";
-    note.style.borderRadius = "6px";
-    note.style.fontSize = "0.9em";
-    note.style.lineHeight = "1.4";
-    note.style.opacity = "0.85";
-    note.style.marginTop = "12px";
-    note.style.marginBottom = "12px";
+    container.createDiv({ text: this.getControlNoteText(), cls: "chatgpt-md-modal-note" });
   }
 
   /**
    * Render action buttons (cancel and approve)
    */
   protected renderActionButtons(container: HTMLElement): void {
-    const buttonContainer = container.createDiv();
-    buttonContainer.style.display = "flex";
-    buttonContainer.style.gap = "8px";
-    buttonContainer.style.justifyContent = "flex-end";
-    buttonContainer.style.marginTop = "20px";
+    const buttonContainer = container.createDiv({ cls: "chatgpt-md-modal-action-row" });
 
     const cancelBtn = buttonContainer.createEl("button", { text: this.getCancelText() });
     this.styleCancelButton(cancelBtn);
@@ -158,36 +141,21 @@ export abstract class BaseApprovalModal<TDecision> extends Modal {
    * Style a secondary button (select all, deselect all)
    */
   protected styleSecondaryButton(button: HTMLButtonElement): void {
-    button.style.padding = "6px 12px";
-    button.style.borderRadius = "4px";
-    button.style.border = "1px solid var(--background-modifier-border)";
-    button.style.backgroundColor = "transparent";
-    button.style.cursor = "pointer";
-    button.style.fontSize = "0.9em";
+    button.addClass("chatgpt-md-modal-btn-secondary");
   }
 
   /**
    * Style cancel button
    */
   protected styleCancelButton(button: HTMLButtonElement): void {
-    button.style.padding = "8px 16px";
-    button.style.borderRadius = "4px";
-    button.style.border = "1px solid var(--background-modifier-border)";
-    button.style.backgroundColor = "transparent";
-    button.style.cursor = "pointer";
+    button.addClass("chatgpt-md-modal-btn-secondary");
   }
 
   /**
    * Style approve button
    */
   protected styleApproveButton(button: HTMLButtonElement): void {
-    button.style.padding = "8px 16px";
-    button.style.borderRadius = "4px";
-    button.style.border = "none";
-    button.style.backgroundColor = "var(--interactive-accent)";
-    button.style.color = "var(--text-on-accent)";
-    button.style.cursor = "pointer";
-    button.style.fontWeight = "500";
+    button.addClass("chatgpt-md-modal-btn-approve");
   }
 
   /**

@@ -36,10 +36,6 @@ export class AiModelSuggestModal extends SuggestModal<string> {
 
   renderSuggestion(model: string, el: HTMLElement) {
     const container = el.createDiv({ cls: "ai-model-suggestion" });
-    container.style.display = "flex";
-    container.style.alignItems = "center";
-    container.style.gap = "8px";
-
     container.createSpan({ text: model });
 
     // Enhanced tool indicator badge if tool calling is enabled and model supports tools
