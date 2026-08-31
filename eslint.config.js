@@ -71,6 +71,20 @@ export default [
     },
   },
   {
+    // lint-staged is intentional: it works reliably with husky and swapping
+    // pre-commit tooling mid-project adds churn without user benefit.
+    files: ["package.json"],
+    rules: {
+      "depend/ban-dependencies": [
+        "error",
+        {
+          presets: ["native", "microutilities", "preferred"],
+          allowed: ["lint-staged"],
+        },
+      ],
+    },
+  },
+  {
     // Global ignores (replaces .eslintignore)
     ignores: [
       "node_modules/",

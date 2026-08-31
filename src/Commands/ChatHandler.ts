@@ -93,7 +93,8 @@ export class ChatHandler implements EditorViewCommandHandler {
       await this.maybeInferTitle(view, frontmatter, settings, messagesWithRoleAndMessage, messages, aiService);
     } catch (err) {
       if (Platform.isMobile) {
-        new Notice(`${PLUGIN_PREFIX} Calling ${frontmatter.model}. ` + err, NOTICE_DURATION_LONG_MS);
+        const reason = err instanceof Error ? err.message : String(err);
+        new Notice(`${PLUGIN_PREFIX} Calling ${frontmatter.model}. ${reason}`, NOTICE_DURATION_LONG_MS);
       }
       this.services.errorService.handleApiError(err, "ChatHandler.execute", {
         showNotification: true,

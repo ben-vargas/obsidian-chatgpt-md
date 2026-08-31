@@ -32,7 +32,7 @@ export function moveCursorToEnd(editor: Editor): void {
     };
     editor.setCursor(newCursor);
   } catch (err) {
-    throw new Error("Error moving cursor to end of file" + err);
+    throw new Error(`Error moving cursor to end of file: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
