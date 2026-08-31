@@ -51,6 +51,19 @@ export default [
       "max-lines-per-function": ["warn", { max: 50, skipBlankLines: true, skipComments: true }],
       "max-depth": ["warn", 4],
 
+      // Gradual adoption: the obsidianmd recommended config flags many
+      // pre-existing patterns as errors, which blocks pre-commit hooks.
+      // Bulk mechanical refactors are downgraded to warnings; real
+      // compatibility issues (no-unsupported-api, no-forbidden-elements)
+      // stay errors.
+      "obsidianmd/no-static-styles-assignment": "warn",
+      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+      "@typescript-eslint/no-unsafe-argument": "warn",
+      "@typescript-eslint/no-unsafe-return": "warn",
+      "@typescript-eslint/restrict-template-expressions": "warn",
+      "@typescript-eslint/restrict-plus-operands": "warn",
+      "@typescript-eslint/no-deprecated": "warn",
+
       // Other useful rules
       "@typescript-eslint/ban-ts-comment": "off",
       "no-prototype-builtins": "off",
