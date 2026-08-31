@@ -1,16 +1,8 @@
-import {
-  App,
-  Notice,
-  Plugin,
-  PluginSettingTab,
-  Setting,
-  SettingDefinitionItem,
-  SettingDefinitionRender,
-} from "obsidian";
+import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { ApiAuthService, isValidApiKey, isValidSecretId } from "src/Services/ApiAuthService";
 import { CredentialDefinition, getCredentialDefinitions } from "src/Services/Providers/ProviderRegistry";
-import { createSettingsSchema, SettingDefinition } from "./settingsSchema";
+import { COLLAPSIBLE_GROUPS, createSettingsSchema, SettingDefinition } from "./settingsSchema";
 import { ConfirmationModal } from "./ConfirmationModal";
 
 interface SettingsProvider {
@@ -62,7 +54,7 @@ export function parseSettingValue(schema: SettingDefinition, value: string | boo
 
 export class ChatGPT_MDSettingsTab extends PluginSettingTab {
   settingsProvider: SettingsProvider;
-  private migrationStarted = false;
+  private displayInProgress = false;
 
   constructor(app: App, plugin: Plugin, settingsProvider: SettingsProvider) {
     super(app, plugin);
@@ -76,62 +68,114 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     this.settingsProvider.updateSettings({ [key]: value });
   }
 
-  /**
-   * Declarative settings API (Obsidian 1.13+): native rendering, grouping,
-   * and settings search, driven by the shared settings schema. Per-row
-   * controls are wired imperatively in populateSetting.
-   */
-  getSettingDefinitions(): SettingDefinitionItem[] {
-    void this.ensureCredentialMigration();
-    return this.buildSettingItems(createSettingsSchema(this.settingsProvider.settings));
+  display(): void {
+    void this.displayAfterMigration();
   }
 
-  /**
-   * Retry the credential migration once per session, then re-render so
-   * insecure-copy notices reflect the current state.
-   */
-  private async ensureCredentialMigration(): Promise<void> {
-    if (this.migrationStarted) return;
-    this.migrationStarted = true;
+  private async displayAfterMigration(): Promise<void> {
+    if (this.displayInProgress) return;
+    this.displayInProgress = true;
     try {
       await this.settingsProvider.retryCredentialMigration();
     } catch {
       new Notice("Some credentials could not be migrated. They remain available and will be retried.");
+    }
+
+    try {
+      this.renderSettings();
     } finally {
-      this.update();
+      this.displayInProgress = false;
     }
   }
 
-  private groupSettings(settingsSchema: SettingDefinition[]): Record<string, SettingDefinition[]> {
-    const groups: Record<string, SettingDefinition[]> = {};
-    for (const setting of settingsSchema) {
-      groups[setting.group] = [...(groups[setting.group] || []), setting];
-    }
-    return groups;
+  private renderSettings(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+    const settingsSchema = createSettingsSchema(this.settingsProvider.settings);
+    const { regularGroups, collapsibleGroups } = this.groupSettings(settingsSchema);
+    this.renderPriorityGroups(containerEl, regularGroups);
+    this.renderProviderGroups(containerEl, collapsibleGroups);
+    this.renderRemainingGroups(containerEl, regularGroups);
   }
 
-  private buildSettingItems(settingsSchema: SettingDefinition[]): SettingDefinitionItem[] {
-    const groups = this.groupSettings(settingsSchema);
-    const items: SettingDefinitionItem[] = [];
-
-    const pushGroup = (heading: string, settings: SettingDefinition[] | undefined): void => {
-      if (!settings?.length) return;
-      items.push({ type: "group", heading, items: settings.map((setting) => this.toRenderDefinition(setting)) });
-      delete groups[heading];
-    };
-
-    pushGroup("API Keys", groups["API Keys"]);
-    pushGroup("Chat Behavior", groups["Chat Behavior"]);
-    Object.entries(groups).forEach(([group, settings]) => pushGroup(group, settings));
-    return items;
+  private groupSettings(settingsSchema: SettingDefinition[]): {
+    regularGroups: Record<string, SettingDefinition[]>;
+    collapsibleGroups: Record<string, SettingDefinition[]>;
+  } {
+    return settingsSchema.reduce<{
+      regularGroups: Record<string, SettingDefinition[]>;
+      collapsibleGroups: Record<string, SettingDefinition[]>;
+    }>(
+      (groups, setting) => {
+        const target = COLLAPSIBLE_GROUPS.includes(setting.group) ? groups.collapsibleGroups : groups.regularGroups;
+        target[setting.group] = [...(target[setting.group] || []), setting];
+        return groups;
+      },
+      { regularGroups: {}, collapsibleGroups: {} }
+    );
   }
 
-  private toRenderDefinition(schema: SettingDefinition): SettingDefinitionRender {
-    return {
-      name: schema.name,
-      desc: schema.description,
-      render: (setting: Setting) => this.populateSetting(setting, schema),
-    };
+  private renderPriorityGroups(container: HTMLElement, regularGroups: Record<string, SettingDefinition[]>): void {
+    this.renderRegularGroup(container, regularGroups, "API Keys");
+    this.renderRegularGroup(container, regularGroups, "Chat Behavior");
+  }
+
+  private renderRegularGroup(
+    container: HTMLElement,
+    regularGroups: Record<string, SettingDefinition[]>,
+    group: string
+  ): void {
+    const settings = regularGroups[group];
+    if (!settings) return;
+
+    this.renderGroupHeader(container, group);
+    settings.forEach((setting) => this.createSettingElement(container, setting));
+    container.createEl("hr");
+    delete regularGroups[group];
+  }
+
+  private renderProviderGroups(container: HTMLElement, collapsibleGroups: Record<string, SettingDefinition[]>): void {
+    if (Object.keys(collapsibleGroups).length === 0) return;
+
+    this.renderGroupHeader(container, "Provider Settings");
+    container.createEl("p", {
+      text: "Configure default settings for each AI provider. Click to expand.",
+      cls: "setting-item-description chatgpt-md-settings-provider-note",
+    });
+
+    Object.entries(collapsibleGroups).forEach(([group, settings]) => {
+      this.renderCollapsibleGroup(container, group, settings);
+    });
+    container.createEl("hr");
+  }
+
+  private renderRemainingGroups(container: HTMLElement, regularGroups: Record<string, SettingDefinition[]>): void {
+    Object.keys(regularGroups).forEach((group) => this.renderRegularGroup(container, regularGroups, group));
+  }
+
+  /**
+   * Render a group header
+   */
+  private renderGroupHeader(container: HTMLElement, title: string): void {
+    new Setting(container).setName(title).setHeading();
+  }
+
+  /**
+   * Render a collapsible group using details/summary elements
+   */
+  private renderCollapsibleGroup(container: HTMLElement, group: string, settings: SettingDefinition[]): void {
+    const details = container.createEl("details", { cls: "chatgpt-md-collapsible-group" });
+    details.createEl("summary", { text: group });
+    const content = details.createDiv({ cls: "chatgpt-md-collapsible-content" });
+
+    settings.forEach((setting) => {
+      this.createSettingElement(content, setting);
+    });
+  }
+
+  createSettingElement(container: HTMLElement, schema: SettingDefinition): void {
+    const setting = new Setting(container).setName(schema.name).setDesc(schema.description);
+    this.populateSetting(setting, schema);
   }
 
   private populateSetting(setting: Setting, schema: SettingDefinition): void {
@@ -175,7 +219,7 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     setting.addButton((button) =>
       button
         .setButtonText("Delete insecure copy")
-        .setDestructive()
+        .setWarning()
         .onClick(() => {
           new ConfirmationModal(this.app, {
             title: "Delete insecure copy",
@@ -183,7 +227,7 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
             confirmText: "Delete insecure copy",
             onConfirm: async () => {
               try {
-                if (await this.settingsProvider.deleteInsecureCredentialCopy(definition)) this.update();
+                if (await this.settingsProvider.deleteInsecureCredentialCopy(definition)) this.display();
               } catch {
                 new Notice("The insecure copy could not be deleted and was retained.");
               }

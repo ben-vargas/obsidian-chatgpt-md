@@ -152,6 +152,33 @@
   }
 }
 
+/* Settings tab: provider collapsibles */
+.chatgpt-md-settings-provider-note {
+  margin-top: -10px;
+  margin-bottom: 15px;
+}
+
+.chatgpt-md-collapsible-group {
+  margin-bottom: 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  padding: 0;
+}
+
+.chatgpt-md-collapsible-group > summary {
+  padding: 10px 15px;
+  cursor: pointer;
+  font-weight: 600;
+  background-color: var(--background-secondary);
+  border-radius: 5px;
+  user-select: none;
+}
+
+.chatgpt-md-collapsible-content {
+  padding: 10px 15px;
+}
+
+/* Settings tab: inputs */
 .chatgpt-md-setting-input {
   width: 300px;
 }

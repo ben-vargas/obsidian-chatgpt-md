@@ -1,5 +1,6 @@
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { DEFAULT_DATE_FORMAT, ROLE_IDENTIFIER, ROLE_USER } from "src/Constants";
+import { getProviderDefinitions } from "src/Services/Providers/ProviderRegistry";
 import {
   DEFAULT_ANTHROPIC_CONFIG,
   DEFAULT_GEMINI_CONFIG,
@@ -21,6 +22,10 @@ export interface SettingDefinition {
   options?: Record<string, string>;
   group: string;
 }
+
+export const COLLAPSIBLE_GROUPS = getProviderDefinitions().map((provider) =>
+  provider.local ? `${provider.label} (Local)` : provider.label
+);
 
 function numericProviderSettings(
   group: string,
