@@ -1,24 +1,25 @@
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
+import obsidianmd from "eslint-plugin-obsidianmd";
 
 export default [
+  // Official Obsidian plugin developer guidelines.
+  // Includes ESLint core recommended, typescript-eslint (incl. type-checked
+  // rules), and Obsidian-specific rules — no need to add those separately.
+  ...obsidianmd.configs.recommended,
+
   {
     files: ["**/*.ts"],
-    plugins: {
-      "@typescript-eslint": typescriptEslint,
-    },
     languageOptions: {
-      parser: tsParser,
       ecmaVersion: "latest",
       sourceType: "module",
       parserOptions: {
-        project: "./tsconfig.json",
+        // Required by the type-checked rules in the recommended config.
+        // Files outside tsconfig.json (like this config) use a default project.
+        projectService: {
+          allowDefaultProject: ["eslint.config.*"],
+        },
       },
     },
     rules: {
-      // ESLint recommended rules
-      ...typescriptEslint.configs.recommended.rules,
-
       // Custom rules from .eslintrc
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
@@ -31,7 +32,7 @@ export default [
         },
       ],
 
-      // Type safety rules - warn for now, can upgrade to error later
+      // Type safety rules
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
