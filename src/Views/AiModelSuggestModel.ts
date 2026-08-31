@@ -24,7 +24,7 @@ export class AiModelSuggestModal extends SuggestModal<string> {
     this.settings = settings;
     this.limit = this.modelNames.length;
     if (this.modelNames.length > 0) {
-      this.setPlaceholder("Select Large Language Model");
+      this.setPlaceholder("Select large language model");
     } else {
       this.setPlaceholder("Loading available models...");
     }

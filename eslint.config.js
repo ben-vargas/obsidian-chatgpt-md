@@ -64,6 +64,18 @@ export default [
       "@typescript-eslint/restrict-plus-operands": "warn",
       "@typescript-eslint/no-deprecated": "warn",
 
+      // UI copy follows Obsidian's sentence-case guideline; autofix enabled.
+      // Brands keep their capitalization; "No, I'll..." is exempt because
+      // lowercasing "I'll" produces broken English (known rule limitation).
+      "obsidianmd/ui/sentence-case": [
+        "warn",
+        {
+          allowAutoFix: true,
+          brands: ["ChatGPT MD", "React"],
+          ignoreRegex: ["^No, I'll create it myself$"],
+        },
+      ],
+
       // Other useful rules
       "@typescript-eslint/ban-ts-comment": "off",
       "no-prototype-builtins": "off",

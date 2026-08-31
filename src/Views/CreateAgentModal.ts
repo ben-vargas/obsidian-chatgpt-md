@@ -76,7 +76,7 @@ export class CreateAgentModal extends Modal {
 
   private renderModeSelect(): void {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Create New Agent" });
+    contentEl.createEl("h2", { text: "Create new agent" });
 
     contentEl.createEl("p", {
       text: "How would you like to create your agent?",
@@ -106,14 +106,14 @@ export class CreateAgentModal extends Modal {
 
   private renderWizardInput(): void {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "AI Agent Wizard" });
+    contentEl.createEl("h2", { text: "AI agent wizard" });
 
     this.addWizardModelField(contentEl);
 
     new Setting(contentEl).setName("Describe your agent idea").addTextArea((textarea) => {
       textarea
         .setPlaceholder(
-          "e.g., A coding assistant that specializes in TypeScript and React, helps with code reviews, and suggests best practices..."
+          "E.g., a coding assistant that specializes in TypeScript and React, helps with code reviews, and suggests best practices..."
         )
         .setValue(this.wizardIdea)
         .onChange((value) => {
@@ -129,7 +129,7 @@ export class CreateAgentModal extends Modal {
     let suggestionsEl: HTMLElement;
 
     new Setting(container)
-      .setName("AI Model")
+      .setName("AI model")
       .setDesc("Select which model generates the agent")
       .addText((text) => {
         text.setPlaceholder("Type to filter models...").onChange((value) => {
@@ -180,7 +180,7 @@ export class CreateAgentModal extends Modal {
 
   private renderManualForm(): void {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Create New Agent" });
+    contentEl.createEl("h2", { text: "Create new agent" });
 
     this.addNameField(contentEl);
     this.addModelField(contentEl);
@@ -190,9 +190,9 @@ export class CreateAgentModal extends Modal {
   }
 
   private addNameField(container: HTMLElement): void {
-    new Setting(container).setName("Agent Name").addText((text) => {
+    new Setting(container).setName("Agent name").addText((text) => {
       text
-        .setPlaceholder("My Agent")
+        .setPlaceholder("My agent")
         .setValue(this.name)
         .onChange((value) => {
           this.name = value;
@@ -270,7 +270,7 @@ export class CreateAgentModal extends Modal {
   }
 
   private addMessageField(container: HTMLElement): void {
-    new Setting(container).setName("Agent Message").addTextArea((textarea) => {
+    new Setting(container).setName("Agent message").addTextArea((textarea) => {
       textarea
         .setPlaceholder("Enter the agent's initial prompt or instructions...")
         .setValue(this.message)
@@ -287,7 +287,7 @@ export class CreateAgentModal extends Modal {
     const backBtn = buttonContainer.createEl("button", { text: "Back" });
     backBtn.onclick = () => this.navigateTo(this.cameFromWizard ? "wizard-input" : "mode-select");
 
-    const createBtn = buttonContainer.createEl("button", { text: "Create Agent", cls: "mod-cta" });
+    const createBtn = buttonContainer.createEl("button", { text: "Create agent", cls: "mod-cta" });
     createBtn.onclick = () => this.handleCreate();
   }
 

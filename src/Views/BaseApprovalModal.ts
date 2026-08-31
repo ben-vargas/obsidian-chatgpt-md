@@ -70,7 +70,7 @@ export abstract class BaseApprovalModal<TDecision> extends Modal {
     const buttonRow = container.createDiv({ cls: "chatgpt-md-modal-button-row" });
 
     const selectAllBtn = buttonRow.createEl("button", {
-      text: "Select All",
+      text: "Select all",
       cls: "chatgpt-md-modal-btn-secondary chatgpt-md-modal-btn-equal",
     });
     selectAllBtn.onclick = () => {
@@ -79,7 +79,7 @@ export abstract class BaseApprovalModal<TDecision> extends Modal {
     };
 
     const deselectAllBtn = buttonRow.createEl("button", {
-      text: "Deselect All",
+      text: "Deselect all",
       cls: "chatgpt-md-modal-btn-secondary chatgpt-md-modal-btn-equal",
     });
     deselectAllBtn.onclick = () => {

@@ -51,7 +51,7 @@ export class AgentSuggestModal extends SuggestModal<AgentItem> {
     try {
       const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (!activeView) {
-        new Notice("[ChatGPT MD] No active note found");
+        new Notice("[ChatGPT MD] no active note found");
         return;
       }
 
