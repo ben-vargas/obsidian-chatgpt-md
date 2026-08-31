@@ -12,6 +12,10 @@ interface AnthropicModel extends ProviderModelData {
   type: string;
 }
 
+interface AnthropicModelsResponse {
+  data?: AnthropicModel[];
+}
+
 /**
  * Adapter for Anthropic (Claude) API provider
  * Encapsulates Anthropic-specific logic and configuration
@@ -51,7 +55,7 @@ export class AnthropicAdapter extends BaseProviderAdapter {
         headers: headers,
       });
 
-      const data = response.json;
+      const data = response.json as AnthropicModelsResponse;
 
       if (data.data && Array.isArray(data.data)) {
         return data.data

@@ -15,7 +15,7 @@ export class StreamingHandler {
 
   private editor: Editor;
   private currentCursor: EditorPosition;
-  private flushTimer: NodeJS.Timeout | null = null;
+  private flushTimer: number | null = null;
   private bufferedText = "";
   private flushInterval: number;
   private setAtCursor: boolean;
@@ -37,7 +37,7 @@ export class StreamingHandler {
    */
   public startBuffering(): void {
     if (!this.flushTimer) {
-      this.flushTimer = setInterval(() => this.flush(), this.flushInterval);
+      this.flushTimer = window.setInterval(() => this.flush(), this.flushInterval);
     }
   }
 
@@ -78,7 +78,7 @@ export class StreamingHandler {
    */
   public stopBuffering(): void {
     if (this.flushTimer) {
-      clearInterval(this.flushTimer);
+      window.clearInterval(this.flushTimer);
       this.flushTimer = null;
     }
     this.forceFlush();

@@ -24,7 +24,7 @@ export class AiModelSuggestModal extends SuggestModal<string> {
     this.settings = settings;
     this.limit = this.modelNames.length;
     if (this.modelNames.length > 0) {
-      this.setPlaceholder("Select Large Language Model");
+      this.setPlaceholder("Select large language model");
     } else {
       this.setPlaceholder("Loading available models...");
     }
@@ -35,16 +35,12 @@ export class AiModelSuggestModal extends SuggestModal<string> {
   }
 
   renderSuggestion(model: string, el: HTMLElement) {
-    const container = el.createEl("div", { cls: "ai-model-suggestion" });
-    container.style.display = "flex";
-    container.style.alignItems = "center";
-    container.style.gap = "8px";
-
-    container.createEl("span", { text: model });
+    const container = el.createDiv({ cls: "ai-model-suggestion" });
+    container.createSpan({ text: model });
 
     // Enhanced tool indicator badge if tool calling is enabled and model supports tools
     if (this.settings?.enableToolCalling && isModelWhitelisted(model, this.settings.toolEnabledModels)) {
-      const badge = container.createEl("span", {
+      const badge = container.createSpan({
         cls: "ai-model-tool-badge",
         text: "Tools",
       });

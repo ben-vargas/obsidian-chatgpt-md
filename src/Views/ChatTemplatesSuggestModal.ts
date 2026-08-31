@@ -19,9 +19,9 @@ export class ChatTemplatesSuggestModal extends SuggestModal<ChatTemplate> {
   }
 
   getFilesInChatFolder(): TFile[] {
-    const folder = this.app.vault.getAbstractFileByPath(this.settings.chatTemplateFolder) as TFolder;
-    if (folder != null) {
-      return folder.children as TFile[];
+    const folder = this.app.vault.getAbstractFileByPath(this.settings.chatTemplateFolder);
+    if (folder instanceof TFolder) {
+      return folder.children.filter((child): child is TFile => child instanceof TFile);
     } else {
       new Notice(`Error getting folder: ${this.settings.chatTemplateFolder}`);
       throw new Error(`Error getting folder: ${this.settings.chatTemplateFolder}`);
@@ -58,7 +58,7 @@ export class ChatTemplatesSuggestModal extends SuggestModal<ChatTemplate> {
 
   // Renders each suggestion item.
   renderSuggestion(template: ChatTemplate, el: HTMLElement) {
-    el.createEl("div", { text: template.title });
+    el.createDiv({ text: template.title });
   }
 
   // Perform action on the selected suggestion.

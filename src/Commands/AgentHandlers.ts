@@ -17,7 +17,7 @@ export class ChooseAgentHandler implements CallbackCommandHandler {
     const settings = settingsService.getSettings();
 
     if (!settings.agentFolder || settings.agentFolder.trim() === "") {
-      new Notice("[ChatGPT MD] No agent folder value found. Please set one in settings.");
+      new Notice("[ChatGPT MD] no agent folder value found. Please set one in settings.");
       return;
     }
 
@@ -50,7 +50,7 @@ export class CreateAgentHandler implements CallbackCommandHandler {
     const settings = settingsService.getSettings();
 
     if (!settings.agentFolder || settings.agentFolder.trim() === "") {
-      new Notice("[ChatGPT MD] No agent folder value found. Please set one in settings.");
+      new Notice("[ChatGPT MD] no agent folder value found. Please set one in settings.");
       return;
     }
 

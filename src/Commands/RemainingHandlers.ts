@@ -42,7 +42,7 @@ export class ChooseChatTemplateHandler implements CallbackCommandHandler {
       );
       return;
     }
-    new Notice("date format cannot be empty in your ChatGPT MD settings. You can choose something like YYYYMMDDhhmmss");
+    new Notice("Date format cannot be empty in your ChatGPT MD settings. You can choose something like YYYYMMDDhhmmss");
   }
 
   getCommand(): CommandMetadata {

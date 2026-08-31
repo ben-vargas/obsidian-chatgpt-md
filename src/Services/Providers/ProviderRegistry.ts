@@ -78,7 +78,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     defaultUrl: DEFAULT_OLLAMA_CONFIG.url,
     defaultConfig: DEFAULT_OLLAMA_CONFIG,
     createAdapter: () => new OllamaAdapter(),
-    createProviderFactory: () => createOpenAICompatible as ProviderFactory,
+    createProviderFactory: () => createOpenAICompatible,
     getFrontmatterFields: (settings) => ({
       url: settings.ollamaUrl,
       temperature: settings.ollamaDefaultTemperature,
@@ -102,7 +102,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     defaultUrl: DEFAULT_OPENAI_CONFIG.url,
     defaultConfig: DEFAULT_OPENAI_CONFIG,
     createAdapter: () => new OpenAIAdapter(),
-    createProviderFactory: () => createOpenAI as ProviderFactory,
+    createProviderFactory: () => createOpenAI,
     getFrontmatterFields: (settings) => ({
       model: settings.openaiDefaultModel,
       temperature: settings.openaiDefaultTemperature,
@@ -129,7 +129,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     defaultUrl: DEFAULT_OPENROUTER_CONFIG.url,
     defaultConfig: DEFAULT_OPENROUTER_CONFIG,
     createAdapter: () => new OpenRouterAdapter(),
-    createProviderFactory: () => createOpenRouter as ProviderFactory,
+    createProviderFactory: () => createOpenRouter,
     getFrontmatterFields: (settings) => ({
       model: settings.openrouterDefaultModel,
       temperature: settings.openrouterDefaultTemperature,
@@ -148,7 +148,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     defaultUrl: DEFAULT_LMSTUDIO_CONFIG.url,
     defaultConfig: DEFAULT_LMSTUDIO_CONFIG,
     createAdapter: () => new LmStudioAdapter(),
-    createProviderFactory: () => createOpenAICompatible as ProviderFactory,
+    createProviderFactory: () => createOpenAICompatible,
     getFrontmatterFields: (settings) => ({
       url: settings.lmstudioUrl,
       temperature: settings.lmstudioDefaultTemperature,
@@ -174,7 +174,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     defaultUrl: DEFAULT_ANTHROPIC_CONFIG.url,
     defaultConfig: DEFAULT_ANTHROPIC_CONFIG,
     createAdapter: () => new AnthropicAdapter(),
-    createProviderFactory: () => createAnthropic as ProviderFactory,
+    createProviderFactory: () => createAnthropic,
     getFrontmatterFields: (settings) => ({
       model: settings.anthropicDefaultModel,
       url: settings.anthropicUrl,
@@ -199,7 +199,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     defaultUrl: DEFAULT_GEMINI_CONFIG.url,
     defaultConfig: DEFAULT_GEMINI_CONFIG,
     createAdapter: () => new GeminiAdapter(),
-    createProviderFactory: () => createGoogleGenerativeAI as ProviderFactory,
+    createProviderFactory: () => createGoogleGenerativeAI,
     getFrontmatterFields: (settings) => ({
       model: settings.geminiDefaultModel,
       url: settings.geminiUrl,
@@ -226,7 +226,7 @@ export const PROVIDER_DEFINITIONS: readonly ProviderDefinition[] = [
     defaultConfig: DEFAULT_ZAI_CONFIG,
     createAdapter: () => new ZaiAdapter(),
     createProviderFactory: (baseUrl) =>
-      (baseUrl?.includes("/api/anthropic") ? createAnthropic : createOpenAICompatible) as ProviderFactory,
+      baseUrl?.includes("/api/anthropic") ? createAnthropic : createOpenAICompatible,
     getFrontmatterFields: (settings) => ({
       model: settings.zaiDefaultModel,
       url: settings.zaiUrl,

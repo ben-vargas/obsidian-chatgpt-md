@@ -29,15 +29,10 @@ export class SearchResultsApprovalModal extends BaseApprovalModal<SearchResultsA
 
   protected renderSelectionItems(container: HTMLElement): void {
     // Results label
-    const resultsLabel = container.createEl("p", { text: "Select which files to share:" });
-    resultsLabel.style.marginTop = "8px";
-    resultsLabel.style.marginBottom = "8px";
-    resultsLabel.style.fontWeight = "500";
-    resultsLabel.style.opacity = "0.7";
+    container.createEl("p", { text: "Select which files to share:", cls: "chatgpt-md-selection-label" });
 
     // Results selection container
-    const resultsContainer = container.createDiv();
-    resultsContainer.style.marginBottom = "12px";
+    const resultsContainer = container.createDiv({ cls: "chatgpt-md-selection-list" });
 
     // Initialize all results as selected by default (if not already set)
     for (const result of this.results) {
@@ -55,34 +50,19 @@ export class SearchResultsApprovalModal extends BaseApprovalModal<SearchResultsA
         displayPath = markdownMatch[1];
       }
 
-      const resultItem = resultsContainer.createDiv();
-      resultItem.style.display = "flex";
-      resultItem.style.alignItems = "center";
-      resultItem.style.padding = "8px";
-      resultItem.style.marginBottom = "4px";
-      resultItem.style.borderRadius = "4px";
-      resultItem.style.backgroundColor = "var(--background-secondary)";
+      const resultItem = resultsContainer.createDiv({ cls: "chatgpt-md-selection-item" });
 
       const checkbox = resultItem.createEl("input");
       checkbox.type = "checkbox";
       checkbox.checked = currentValue;
-      checkbox.style.marginRight = "8px";
       checkbox.onchange = () => {
         this.selections.set(result.path, checkbox.checked);
       };
 
       const label = resultItem.createEl("label");
-      label.style.flex = "1";
-      label.style.cursor = "pointer";
 
-      const nameEl = label.createEl("div", { text: result.basename });
-      nameEl.style.fontWeight = "500";
-      nameEl.style.fontSize = "0.95em";
-
-      const pathEl = label.createEl("div", { text: displayPath });
-      pathEl.style.fontSize = "0.85em";
-      pathEl.style.opacity = "0.6";
-      pathEl.style.marginTop = "2px";
+      label.createDiv({ text: result.basename, cls: "chatgpt-md-selection-name" });
+      label.createDiv({ text: displayPath, cls: "chatgpt-md-selection-path" });
 
       label.onclick = () => {
         checkbox.checked = !checkbox.checked;

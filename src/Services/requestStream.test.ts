@@ -2,6 +2,12 @@ import { jest } from "@jest/globals";
 import { requestStreamFetch } from "./requestStream";
 
 describe("requestStreamFetch", () => {
+  beforeAll(() => {
+    // requestStreamFetch calls window.fetch (popout-window compatibility);
+    // the node test environment has no window global.
+    (globalThis as { window?: typeof globalThis }).window = globalThis;
+  });
+
   afterEach(() => jest.restoreAllMocks());
 
   it("forwards method, body, headers, and signal", async () => {

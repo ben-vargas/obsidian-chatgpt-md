@@ -40,7 +40,7 @@ export class AgentSuggestModal extends SuggestModal<AgentItem> {
   }
 
   renderSuggestion(agent: AgentItem, el: HTMLElement): void {
-    el.createEl("div", { text: agent.title });
+    el.createDiv({ text: agent.title });
   }
 
   onChooseSuggestion(agent: AgentItem): void {
@@ -51,7 +51,7 @@ export class AgentSuggestModal extends SuggestModal<AgentItem> {
     try {
       const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
       if (!activeView) {
-        new Notice("[ChatGPT MD] No active note found");
+        new Notice("[ChatGPT MD] no active note found");
         return;
       }
 

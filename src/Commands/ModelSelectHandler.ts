@@ -45,10 +45,11 @@ export class ModelSelectHandler implements EditorViewCommandHandler {
         const frontmatter = await editorService.getFrontmatter(view);
         const frontmatterUrls = getAiApiUrls(frontmatter);
         const currentUrls = Object.fromEntries(
-          getProviderDefinitions().map((provider) => [
-            provider.id,
-            String(frontmatter[provider.urlSetting] || settings[provider.urlSetting] || frontmatterUrls[provider.id]),
-          ])
+          getProviderDefinitions().map((provider) => {
+            const url =
+              frontmatter[provider.urlSetting] || settings[provider.urlSetting] || frontmatterUrls[provider.id];
+            return [provider.id, typeof url === "string" ? url : ""];
+          })
         );
 
         const aiService = this.services.aiProviderService();

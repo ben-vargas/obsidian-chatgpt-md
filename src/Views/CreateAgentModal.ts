@@ -76,18 +76,14 @@ export class CreateAgentModal extends Modal {
 
   private renderModeSelect(): void {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Create New Agent" });
+    contentEl.createEl("h2", { text: "Create new agent" });
 
-    const description = contentEl.createEl("p", {
+    contentEl.createEl("p", {
       text: "How would you like to create your agent?",
+      cls: "chatgpt-md-mode-description",
     });
-    description.style.color = "var(--text-muted)";
-    description.style.marginBottom = "16px";
 
-    const cardsContainer = contentEl.createDiv();
-    cardsContainer.style.display = "flex";
-    cardsContainer.style.gap = "12px";
-    cardsContainer.style.marginTop = "8px";
+    const cardsContainer = contentEl.createDiv({ cls: "chatgpt-md-mode-cards" });
 
     this.createModeCard(cardsContainer, "Manual", "Configure everything yourself", () =>
       this.navigateTo("manual-form")
@@ -99,29 +95,10 @@ export class CreateAgentModal extends Modal {
   }
 
   private createModeCard(container: HTMLElement, title: string, description: string, onClick: () => void): void {
-    const card = container.createDiv();
-    card.style.flex = "1";
-    card.style.padding = "20px";
-    card.style.borderRadius = "8px";
-    card.style.border = "1px solid var(--background-modifier-border)";
-    card.style.cursor = "pointer";
-    card.style.textAlign = "center";
-    card.style.transition = "border-color 0.15s ease, background-color 0.15s ease";
+    const card = container.createDiv({ cls: "chatgpt-md-mode-card" });
+    card.createEl("h3", { text: title });
+    card.createEl("p", { text: description });
 
-    card.createEl("h3", { text: title }).style.margin = "0 0 8px 0";
-    const desc = card.createEl("p", { text: description });
-    desc.style.margin = "0";
-    desc.style.color = "var(--text-muted)";
-    desc.style.fontSize = "0.85em";
-
-    card.addEventListener("mouseenter", () => {
-      card.style.borderColor = "var(--interactive-accent)";
-      card.style.backgroundColor = "var(--background-modifier-hover)";
-    });
-    card.addEventListener("mouseleave", () => {
-      card.style.borderColor = "var(--background-modifier-border)";
-      card.style.backgroundColor = "";
-    });
     card.addEventListener("click", onClick);
   }
 
@@ -129,21 +106,20 @@ export class CreateAgentModal extends Modal {
 
   private renderWizardInput(): void {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "AI Agent Wizard" });
+    contentEl.createEl("h2", { text: "AI agent wizard" });
 
     this.addWizardModelField(contentEl);
 
     new Setting(contentEl).setName("Describe your agent idea").addTextArea((textarea) => {
       textarea
         .setPlaceholder(
-          "e.g., A coding assistant that specializes in TypeScript and React, helps with code reviews, and suggests best practices..."
+          "E.g., a coding assistant that specializes in TypeScript and React, helps with code reviews, and suggests best practices..."
         )
         .setValue(this.wizardIdea)
         .onChange((value) => {
           this.wizardIdea = value;
         });
-      textarea.inputEl.style.width = "100%";
-      textarea.inputEl.style.height = "150px";
+      textarea.inputEl.addClass("chatgpt-md-wizard-idea");
     });
 
     this.addWizardButtons(contentEl);
@@ -153,14 +129,14 @@ export class CreateAgentModal extends Modal {
     let suggestionsEl: HTMLElement;
 
     new Setting(container)
-      .setName("AI Model")
+      .setName("AI model")
       .setDesc("Select which model generates the agent")
       .addText((text) => {
         text.setPlaceholder("Type to filter models...").onChange((value) => {
           this.wizardModel = value;
           this.updateModelSuggestions(value, suggestionsEl, true);
         });
-        text.inputEl.style.width = "300px";
+        text.inputEl.addClass("chatgpt-md-setting-input");
 
         if (this.wizardModel) {
           text.setValue(this.wizardModel);
@@ -169,19 +145,11 @@ export class CreateAgentModal extends Modal {
         this.modelInputEl = text.inputEl;
       });
 
-    suggestionsEl = container.createDiv({ cls: "chatgpt-md-model-suggestions" });
-    suggestionsEl.style.maxHeight = "150px";
-    suggestionsEl.style.overflowY = "auto";
-    suggestionsEl.style.marginTop = "-10px";
-    suggestionsEl.style.marginBottom = "10px";
+    suggestionsEl = container.createDiv({ cls: "chatgpt-md-model-suggestions chatgpt-md-model-suggestions-box" });
   }
 
   private addWizardButtons(container: HTMLElement): void {
-    const buttonContainer = container.createDiv();
-    buttonContainer.style.display = "flex";
-    buttonContainer.style.gap = "8px";
-    buttonContainer.style.justifyContent = "flex-end";
-    buttonContainer.style.marginTop = "20px";
+    const buttonContainer = container.createDiv({ cls: "chatgpt-md-modal-action-row" });
 
     const backBtn = buttonContainer.createEl("button", { text: "Back" });
     backBtn.onclick = () => this.navigateTo("mode-select");
@@ -199,41 +167,20 @@ export class CreateAgentModal extends Modal {
     const { contentEl } = this;
     contentEl.createEl("h2", { text: "Creating your agent..." });
 
-    const loadingContainer = contentEl.createDiv();
-    loadingContainer.style.textAlign = "center";
-    loadingContainer.style.padding = "40px 0";
+    const loadingContainer = contentEl.createDiv({ cls: "chatgpt-md-loading-container" });
+    loadingContainer.createDiv({ cls: "chatgpt-md-spinner" });
 
-    const spinner = loadingContainer.createDiv();
-    spinner.style.display = "inline-block";
-    spinner.style.width = "32px";
-    spinner.style.height = "32px";
-    spinner.style.border = "3px solid var(--background-modifier-border)";
-    spinner.style.borderTop = "3px solid var(--interactive-accent)";
-    spinner.style.borderRadius = "50%";
-    spinner.style.animation = "chatgpt-md-spin 1s linear infinite";
-
-    const desc = loadingContainer.createEl("p", {
+    loadingContainer.createEl("p", {
       text: "AI is crafting your agent's configuration...",
+      cls: "chatgpt-md-loading-desc",
     });
-    desc.style.color = "var(--text-muted)";
-    desc.style.marginTop = "16px";
-
-    this.addSpinnerStyle();
-  }
-
-  private addSpinnerStyle(): void {
-    if (document.getElementById("chatgpt-md-spinner-style")) return;
-    const style = document.createElement("style");
-    style.id = "chatgpt-md-spinner-style";
-    style.textContent = `@keyframes chatgpt-md-spin { to { transform: rotate(360deg); } }`;
-    document.head.appendChild(style);
   }
 
   // ── Step: Manual Form ─────────────────────────────────────
 
   private renderManualForm(): void {
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Create New Agent" });
+    contentEl.createEl("h2", { text: "Create new agent" });
 
     this.addNameField(contentEl);
     this.addModelField(contentEl);
@@ -243,14 +190,14 @@ export class CreateAgentModal extends Modal {
   }
 
   private addNameField(container: HTMLElement): void {
-    new Setting(container).setName("Agent Name").addText((text) => {
+    new Setting(container).setName("Agent name").addText((text) => {
       text
-        .setPlaceholder("My Agent")
+        .setPlaceholder("My agent")
         .setValue(this.name)
         .onChange((value) => {
           this.name = value;
         });
-      text.inputEl.style.width = "300px";
+      text.inputEl.addClass("chatgpt-md-setting-input");
     });
   }
 
@@ -263,16 +210,14 @@ export class CreateAgentModal extends Modal {
           this.model = value;
           this.updateModelSuggestions(value, suggestionsEl, false);
         });
-      text.inputEl.style.width = "300px";
+      text.inputEl.addClass("chatgpt-md-setting-input");
 
       this.modelInputEl = text.inputEl;
     });
 
-    const suggestionsEl = container.createDiv({ cls: "chatgpt-md-model-suggestions" });
-    suggestionsEl.style.maxHeight = "150px";
-    suggestionsEl.style.overflowY = "auto";
-    suggestionsEl.style.marginTop = "-10px";
-    suggestionsEl.style.marginBottom = "10px";
+    const suggestionsEl = container.createDiv({
+      cls: "chatgpt-md-model-suggestions chatgpt-md-model-suggestions-box",
+    });
 
     this.updateModelSuggestions("", suggestionsEl, false);
   }
@@ -283,13 +228,8 @@ export class CreateAgentModal extends Modal {
     const filtered = this.availableModels.filter((m) => m.toLowerCase().includes(query.toLowerCase()));
 
     for (const model of filtered) {
-      const item = suggestionsEl.createDiv({ cls: "suggestion-item" });
+      const item = suggestionsEl.createDiv({ cls: "suggestion-item chatgpt-md-model-suggestion-item" });
       item.setText(model);
-      item.style.padding = "4px 8px";
-      item.style.cursor = "pointer";
-      item.style.borderRadius = "4px";
-      item.addEventListener("mouseenter", () => (item.style.backgroundColor = "var(--background-modifier-hover)"));
-      item.addEventListener("mouseleave", () => (item.style.backgroundColor = ""));
       item.addEventListener("click", () => {
         if (isWizard) {
           this.wizardModel = model;
@@ -306,9 +246,7 @@ export class CreateAgentModal extends Modal {
   }
 
   private addTemperatureField(container: HTMLElement): void {
-    const tempDisplay = container.createEl("span", { text: this.temperature.toFixed(1) });
-    tempDisplay.style.marginLeft = "8px";
-    tempDisplay.style.fontFamily = "monospace";
+    const tempDisplay = container.createSpan({ text: this.temperature.toFixed(1), cls: "chatgpt-md-temp-display" });
 
     new Setting(container).setName("Temperature").addSlider((slider) => {
       slider
@@ -318,7 +256,7 @@ export class CreateAgentModal extends Modal {
           this.temperature = value;
           tempDisplay.setText(value.toFixed(1));
         });
-      slider.sliderEl.style.width = "250px";
+      slider.sliderEl.addClass("chatgpt-md-setting-slider");
       slider.sliderEl.addEventListener("input", () => {
         tempDisplay.setText(slider.getValue().toFixed(1));
       });
@@ -332,29 +270,24 @@ export class CreateAgentModal extends Modal {
   }
 
   private addMessageField(container: HTMLElement): void {
-    new Setting(container).setName("Agent Message").addTextArea((textarea) => {
+    new Setting(container).setName("Agent message").addTextArea((textarea) => {
       textarea
         .setPlaceholder("Enter the agent's initial prompt or instructions...")
         .setValue(this.message)
         .onChange((value) => {
           this.message = value;
         });
-      textarea.inputEl.style.width = "100%";
-      textarea.inputEl.style.height = "200px";
+      textarea.inputEl.addClass("chatgpt-md-agent-message");
     });
   }
 
   private addManualButtons(container: HTMLElement): void {
-    const buttonContainer = container.createDiv();
-    buttonContainer.style.display = "flex";
-    buttonContainer.style.gap = "8px";
-    buttonContainer.style.justifyContent = "flex-end";
-    buttonContainer.style.marginTop = "20px";
+    const buttonContainer = container.createDiv({ cls: "chatgpt-md-modal-action-row" });
 
     const backBtn = buttonContainer.createEl("button", { text: "Back" });
     backBtn.onclick = () => this.navigateTo(this.cameFromWizard ? "wizard-input" : "mode-select");
 
-    const createBtn = buttonContainer.createEl("button", { text: "Create Agent", cls: "mod-cta" });
+    const createBtn = buttonContainer.createEl("button", { text: "Create agent", cls: "mod-cta" });
     createBtn.onclick = () => this.handleCreate();
   }
 

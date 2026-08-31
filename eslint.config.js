@@ -1,24 +1,25 @@
-import typescriptEslint from "@typescript-eslint/eslint-plugin";
-import tsParser from "@typescript-eslint/parser";
+import obsidianmd from "eslint-plugin-obsidianmd";
 
 export default [
+  // Official Obsidian plugin developer guidelines.
+  // Includes ESLint core recommended, typescript-eslint (incl. type-checked
+  // rules), and Obsidian-specific rules — no need to add those separately.
+  ...obsidianmd.configs.recommended,
+
   {
     files: ["**/*.ts"],
-    plugins: {
-      "@typescript-eslint": typescriptEslint,
-    },
     languageOptions: {
-      parser: tsParser,
       ecmaVersion: "latest",
       sourceType: "module",
       parserOptions: {
-        project: "./tsconfig.json",
+        // Required by the type-checked rules in the recommended config.
+        // Files outside tsconfig.json (like this config) use a default project.
+        projectService: {
+          allowDefaultProject: ["eslint.config.*"],
+        },
       },
     },
     rules: {
-      // ESLint recommended rules
-      ...typescriptEslint.configs.recommended.rules,
-
       // Custom rules from .eslintrc
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
@@ -31,7 +32,7 @@ export default [
         },
       ],
 
-      // Type safety rules - warn for now, can upgrade to error later
+      // Type safety rules
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
@@ -50,10 +51,49 @@ export default [
       "max-lines-per-function": ["warn", { max: 50, skipBlankLines: true, skipComments: true }],
       "max-depth": ["warn", 4],
 
+      // Gradual adoption: the obsidianmd recommended config flags many
+      // pre-existing patterns as errors, which blocks pre-commit hooks.
+      // Bulk mechanical refactors are downgraded to warnings; real
+      // compatibility issues (no-unsupported-api, no-forbidden-elements)
+      // stay errors.
+      "obsidianmd/no-static-styles-assignment": "warn",
+      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+      "@typescript-eslint/no-unsafe-argument": "warn",
+      "@typescript-eslint/no-unsafe-return": "warn",
+      "@typescript-eslint/restrict-template-expressions": "warn",
+      "@typescript-eslint/restrict-plus-operands": "warn",
+      "@typescript-eslint/no-deprecated": "warn",
+
+      // UI copy follows Obsidian's sentence-case guideline; autofix enabled.
+      // Brands keep their capitalization; "No, I'll..." is exempt because
+      // lowercasing "I'll" produces broken English (known rule limitation).
+      "obsidianmd/ui/sentence-case": [
+        "warn",
+        {
+          allowAutoFix: true,
+          brands: ["ChatGPT MD", "React"],
+          ignoreRegex: ["^No, I'll create it myself$"],
+        },
+      ],
+
       // Other useful rules
       "@typescript-eslint/ban-ts-comment": "off",
       "no-prototype-builtins": "off",
       "@typescript-eslint/no-empty-function": "off",
+    },
+  },
+  {
+    // lint-staged is intentional: it works reliably with husky and swapping
+    // pre-commit tooling mid-project adds churn without user benefit.
+    files: ["package.json"],
+    rules: {
+      "depend/ban-dependencies": [
+        "error",
+        {
+          presets: ["native", "microutilities", "preferred"],
+          allowed: ["lint-staged"],
+        },
+      ],
     },
   },
   {

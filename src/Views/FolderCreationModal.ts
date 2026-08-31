@@ -31,7 +31,7 @@ export class FolderCreationModal extends Modal {
 
     new Setting(contentEl).addButton((btn) =>
       btn
-        .setButtonText("Yes, Create Folder")
+        .setButtonText("Yes, create folder")
         .setTooltip("Create folder")
         .setCta()
         .onClick(() => {

@@ -1,5 +1,6 @@
 import { App, TFile } from "obsidian";
 import { Logger } from "src/Utilities/Logger";
+import { toErrorMessage } from "src/Utilities/AiErrorFormatter";
 
 import { FileService } from "./FileService";
 import { NotificationService } from "./NotificationService";
@@ -485,7 +486,7 @@ export class ToolService {
     } catch (error) {
       return {
         toolCallId,
-        result: { error: `Tool execution failed: ${error}` },
+        result: { error: `Tool execution failed: ${toErrorMessage(error)}` },
       };
     }
   }

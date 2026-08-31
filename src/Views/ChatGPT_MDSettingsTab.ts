@@ -3,6 +3,7 @@ import { ChatGPT_MDSettings } from "src/Models/Config";
 import { ApiAuthService, isValidApiKey, isValidSecretId } from "src/Services/ApiAuthService";
 import { CredentialDefinition, getCredentialDefinitions } from "src/Services/Providers/ProviderRegistry";
 import { COLLAPSIBLE_GROUPS, createSettingsSchema, SettingDefinition } from "./settingsSchema";
+import { ConfirmationModal } from "./ConfirmationModal";
 
 interface SettingsProvider {
   settings: ChatGPT_MDSettings;
@@ -101,16 +102,16 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     regularGroups: Record<string, SettingDefinition[]>;
     collapsibleGroups: Record<string, SettingDefinition[]>;
   } {
-    return settingsSchema.reduce(
+    return settingsSchema.reduce<{
+      regularGroups: Record<string, SettingDefinition[]>;
+      collapsibleGroups: Record<string, SettingDefinition[]>;
+    }>(
       (groups, setting) => {
         const target = COLLAPSIBLE_GROUPS.includes(setting.group) ? groups.collapsibleGroups : groups.regularGroups;
         target[setting.group] = [...(target[setting.group] || []), setting];
         return groups;
       },
-      { regularGroups: {}, collapsibleGroups: {} } as {
-        regularGroups: Record<string, SettingDefinition[]>;
-        collapsibleGroups: Record<string, SettingDefinition[]>;
-      }
+      { regularGroups: {}, collapsibleGroups: {} }
     );
   }
 
@@ -137,12 +138,10 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     if (Object.keys(collapsibleGroups).length === 0) return;
 
     this.renderGroupHeader(container, "Provider Settings");
-    const providerNote = container.createEl("p", {
+    container.createEl("p", {
       text: "Configure default settings for each AI provider. Click to expand.",
-      cls: "setting-item-description",
+      cls: "setting-item-description chatgpt-md-settings-provider-note",
     });
-    providerNote.style.marginTop = "-10px";
-    providerNote.style.marginBottom = "15px";
 
     Object.entries(collapsibleGroups).forEach(([group, settings]) => {
       this.renderCollapsibleGroup(container, group, settings);
@@ -155,10 +154,10 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
   }
 
   /**
-   * Render a group header (h3)
+   * Render a group header
    */
   private renderGroupHeader(container: HTMLElement, title: string): void {
-    container.createEl("h3", { text: title });
+    new Setting(container).setName(title).setHeading();
   }
 
   /**
@@ -166,21 +165,8 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
    */
   private renderCollapsibleGroup(container: HTMLElement, group: string, settings: SettingDefinition[]): void {
     const details = container.createEl("details", { cls: "chatgpt-md-collapsible-group" });
-    details.style.marginBottom = "10px";
-    details.style.border = "1px solid var(--background-modifier-border)";
-    details.style.borderRadius = "5px";
-    details.style.padding = "0";
-
-    const summary = details.createEl("summary", { text: group });
-    summary.style.padding = "10px 15px";
-    summary.style.cursor = "pointer";
-    summary.style.fontWeight = "600";
-    summary.style.backgroundColor = "var(--background-secondary)";
-    summary.style.borderRadius = "5px";
-    summary.style.userSelect = "none";
-
-    const content = details.createEl("div", { cls: "chatgpt-md-collapsible-content" });
-    content.style.padding = "10px 15px";
+    details.createEl("summary", { text: group });
+    const content = details.createDiv({ cls: "chatgpt-md-collapsible-content" });
 
     settings.forEach((setting) => {
       this.createSettingElement(content, setting);
@@ -189,7 +175,10 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
 
   createSettingElement(container: HTMLElement, schema: SettingDefinition): void {
     const setting = new Setting(container).setName(schema.name).setDesc(schema.description);
+    this.populateSetting(setting, schema);
+  }
 
+  private populateSetting(setting: Setting, schema: SettingDefinition): void {
     if (schema.type === "text") this.addTextSetting(setting, schema);
     if (schema.type === "credential") this.addCredentialSetting(setting, schema);
     if (schema.type === "textarea") this.addTextareaSetting(setting, schema);
@@ -231,13 +220,19 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
       button
         .setButtonText("Delete insecure copy")
         .setWarning()
-        .onClick(async () => {
-          if (!window.confirm(`Delete the insecure ${definition.label} plaintext copy?`)) return;
-          try {
-            if (await this.settingsProvider.deleteInsecureCredentialCopy(definition)) this.display();
-          } catch {
-            new Notice("The insecure copy could not be deleted and was retained.");
-          }
+        .onClick(() => {
+          new ConfirmationModal(this.app, {
+            title: "Delete insecure copy",
+            body: `Delete the insecure ${definition.label} plaintext copy? The secure credential is unaffected.`,
+            confirmText: "Delete insecure copy",
+            onConfirm: async () => {
+              try {
+                if (await this.settingsProvider.deleteInsecureCredentialCopy(definition)) this.display();
+              } catch {
+                new Notice("The insecure copy could not be deleted and was retained.");
+              }
+            },
+          }).open();
         })
     );
   }
@@ -249,11 +244,11 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     }
 
     const previous = this.settingsProvider.settings[key];
-    this.updateSetting(key, value as ChatGPT_MDSettings[typeof key]);
+    this.updateSetting(key, value);
     try {
       await this.settingsProvider.saveSettings();
     } catch {
-      this.updateSetting(key, previous as ChatGPT_MDSettings[typeof key]);
+      this.updateSetting(key, previous);
       new Notice(`Could not save credential selection for ${label}`);
     }
   }
@@ -264,7 +259,7 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
         .setPlaceholder(schema.placeholder || "")
         .setValue(String(this.settingsProvider.settings[schema.id]))
         .onChange((value) => this.saveSetting(schema, value));
-      text.inputEl.style.width = "300px";
+      text.inputEl.addClass("chatgpt-md-setting-input");
       return text;
     });
   }
@@ -275,7 +270,7 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
         .setPlaceholder(schema.placeholder || "")
         .setValue(String(this.settingsProvider.settings[schema.id] || schema.placeholder))
         .onChange((value) => this.saveSetting(schema, value));
-      text.inputEl.style.width = "300px";
+      text.inputEl.addClass("chatgpt-md-setting-input");
       this.applyTextareaHeight(text.inputEl, schema);
       return text;
     });
@@ -294,27 +289,25 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
       dropdown.addOptions(schema.options || {});
       dropdown.setValue(String(this.settingsProvider.settings[schema.id]));
       dropdown.onChange((value) => this.saveSetting(schema, value));
-      dropdown.selectEl.style.width = "300px";
+      dropdown.selectEl.addClass("chatgpt-md-setting-input");
       return dropdown;
     });
   }
 
   private applyTextareaHeight(inputEl: HTMLTextAreaElement, schema: SettingDefinition): void {
     if (schema.id === "defaultChatFrontmatter" || schema.id === "pluginSystemMessage") {
-      inputEl.style.height = "260px";
-      inputEl.style.minHeight = "260px";
+      inputEl.addClass("chatgpt-md-textarea-large");
     }
 
     if (schema.id === "toolEnabledModels") {
-      inputEl.style.height = "200px";
-      inputEl.style.minHeight = "200px";
+      inputEl.addClass("chatgpt-md-textarea-medium");
     }
   }
 
   private async saveSetting(schema: SettingDefinition, value: string | boolean): Promise<void> {
     try {
       const parsedValue = parseSettingValue(schema, value);
-      this.updateSetting(schema.id, parsedValue as ChatGPT_MDSettings[typeof schema.id]);
+      this.updateSetting(schema.id, parsedValue);
       await this.settingsProvider.saveSettings();
     } catch (error) {
       new Notice(error instanceof Error ? error.message : `Invalid value for ${schema.name}`);

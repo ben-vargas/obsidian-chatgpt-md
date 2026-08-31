@@ -41,8 +41,13 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
     this.renderRequestDescription(container);
 
     // File selection for file_read tool
-    if (this.toolName === "file_read" && this.args && Array.isArray(this.args.filePaths)) {
-      this.renderFileSelection(container, this.args.filePaths);
+    const filePaths = this.args?.filePaths;
+    if (
+      this.toolName === "file_read" &&
+      Array.isArray(filePaths) &&
+      filePaths.every((p): p is string => typeof p === "string")
+    ) {
+      this.renderFileSelection(container, filePaths);
     }
   }
 
@@ -50,14 +55,8 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
    * Render file selection UI for file_read tool
    */
   private renderFileSelection(container: HTMLElement, filePaths: string[]): void {
-    const fileSelectionLabel = container.createEl("p", { text: "Select files to share:" });
-    fileSelectionLabel.style.marginTop = "16px";
-    fileSelectionLabel.style.marginBottom = "8px";
-    fileSelectionLabel.style.fontWeight = "500";
-    fileSelectionLabel.style.opacity = "0.7";
-
-    const fileListContainer = container.createDiv();
-    fileListContainer.style.marginBottom = "12px";
+    container.createEl("p", { text: "Select files to share:", cls: "chatgpt-md-selection-label-spaced" });
+    const fileListContainer = container.createDiv({ cls: "chatgpt-md-selection-list" });
 
     // Initialize all files as selected by default (if not already set)
     for (const path of filePaths) {
@@ -69,34 +68,19 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
       const fileName = path.split("/").pop() || path;
       const currentValue = this.selections.get(path) || false;
 
-      const fileItem = fileListContainer.createDiv();
-      fileItem.style.display = "flex";
-      fileItem.style.alignItems = "center";
-      fileItem.style.padding = "8px";
-      fileItem.style.marginBottom = "4px";
-      fileItem.style.borderRadius = "4px";
-      fileItem.style.backgroundColor = "var(--background-secondary)";
+      const fileItem = fileListContainer.createDiv({ cls: "chatgpt-md-selection-item" });
 
       const checkbox = fileItem.createEl("input");
       checkbox.type = "checkbox";
       checkbox.checked = currentValue;
-      checkbox.style.marginRight = "8px";
       checkbox.onchange = () => {
         this.selections.set(path, checkbox.checked);
       };
 
       const label = fileItem.createEl("label");
-      label.style.flex = "1";
-      label.style.cursor = "pointer";
 
-      const nameEl = label.createEl("div", { text: fileName });
-      nameEl.style.fontWeight = "500";
-      nameEl.style.fontSize = "0.95em";
-
-      const pathEl = label.createEl("div", { text: path });
-      pathEl.style.fontSize = "0.85em";
-      pathEl.style.opacity = "0.6";
-      pathEl.style.marginTop = "2px";
+      label.createDiv({ text: fileName, cls: "chatgpt-md-selection-name" });
+      label.createDiv({ text: path, cls: "chatgpt-md-selection-path" });
 
       label.onclick = () => {
         checkbox.checked = !checkbox.checked;
@@ -130,11 +114,7 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
   }
 
   protected override renderActionButtons(container: HTMLElement): void {
-    const buttonContainer = container.createDiv();
-    buttonContainer.style.display = "flex";
-    buttonContainer.style.gap = "8px";
-    buttonContainer.style.justifyContent = "flex-end";
-    buttonContainer.style.marginTop = "20px";
+    const buttonContainer = container.createDiv({ cls: "chatgpt-md-modal-action-row" });
 
     const cancelBtn = buttonContainer.createEl("button", { text: this.getCancelText() });
     this.styleCancelButton(cancelBtn);
@@ -178,18 +158,12 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
   private validateApproveButton(): void {
     if (!this.approveBtn) return;
 
-    // For search tools, require non-empty query
+    // For search tools, require non-empty query; styling of the disabled
+    // state lives in .chatgpt-md-modal-btn-approve:disabled
     if ((this.toolName === "vault_search" || this.toolName === "web_search") && this.queryTextarea) {
-      const query = this.queryTextarea.value.trim();
-      const isValid = query.length > 0;
-      this.approveBtn.disabled = !isValid;
-      this.approveBtn.style.opacity = isValid ? "1" : "0.5";
-      this.approveBtn.style.cursor = isValid ? "pointer" : "not-allowed";
+      this.approveBtn.disabled = this.queryTextarea.value.trim().length === 0;
     } else {
-      // Other tools - always enabled
       this.approveBtn.disabled = false;
-      this.approveBtn.style.opacity = "1";
-      this.approveBtn.style.cursor = "pointer";
     }
   }
 

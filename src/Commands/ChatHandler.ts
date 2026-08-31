@@ -17,6 +17,7 @@ import {
 import { getAiApiUrls } from "./CommandUtilities";
 import { AbortableAiService } from "./StopStreamingHandler";
 import { CommandMetadata, EditorViewCommandHandler } from "./CommandHandler";
+import { toErrorMessage } from "src/Utilities/AiErrorFormatter";
 
 /**
  * Handler for the main chat command
@@ -93,7 +94,8 @@ export class ChatHandler implements EditorViewCommandHandler {
       await this.maybeInferTitle(view, frontmatter, settings, messagesWithRoleAndMessage, messages, aiService);
     } catch (err) {
       if (Platform.isMobile) {
-        new Notice(`${PLUGIN_PREFIX} Calling ${frontmatter.model}. ` + err, NOTICE_DURATION_LONG_MS);
+        const reason = toErrorMessage(err);
+        new Notice(`${PLUGIN_PREFIX} Calling ${frontmatter.model}. ${reason}`, NOTICE_DURATION_LONG_MS);
       }
       this.services.errorService.handleApiError(err, "ChatHandler.execute", {
         showNotification: true,
@@ -121,7 +123,7 @@ export class ChatHandler implements EditorViewCommandHandler {
     const settingsWithApiKey = this.buildTitleInferenceSettings(settings, frontmatter);
     if (!this.ensureTitleInferenceModel(settingsWithApiKey, frontmatter.aiService)) return;
 
-    await aiService.inferTitle(view, settingsWithApiKey as ChatGPT_MDSettings, messages, this.services.editorService);
+    await aiService.inferTitle(view, settingsWithApiKey, messages, this.services.editorService);
   }
 
   private shouldInferTitle(view: MarkdownView, settings: ChatGPT_MDSettings, messagesWithRole: Message[]): boolean {

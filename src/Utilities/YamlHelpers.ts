@@ -11,5 +11,5 @@ export function removeYAMLFrontMatter(note: string | undefined): string | undefi
 export function parseSettingsFrontmatter(yamlString: string): Record<string, unknown> {
   const content = yamlString.replace(/^---(?:\r?\n|$)/, "").replace(/(?:\r?\n)?---\s*$/, "");
   const parsed = parseYaml(content);
-  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
 }

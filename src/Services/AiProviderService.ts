@@ -368,7 +368,7 @@ export class AiProviderService implements IAiApiService {
       ...getGenerationOptions(config),
     };
 
-    const toolsAvailable = tools && typeof tools === "object" && Object.keys(tools as object).length > 0;
+    const toolsAvailable = tools && typeof tools === "object" && Object.keys(tools).length > 0;
     const shouldUseTool = toolsAvailable && settings && this.modelSupportsTools(modelName, settings);
 
     if (shouldUseTool) {
@@ -585,7 +585,7 @@ export class AiProviderService implements IAiApiService {
       ...getGenerationOptions(config),
     };
 
-    const toolsAvailable = tools && typeof tools === "object" && Object.keys(tools as object).length > 0;
+    const toolsAvailable = tools && typeof tools === "object" && Object.keys(tools).length > 0;
     const shouldUseTool = toolsAvailable && settings && this.modelSupportsTools(modelName, settings);
 
     if (shouldUseTool) {

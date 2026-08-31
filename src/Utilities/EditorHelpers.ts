@@ -1,6 +1,7 @@
 import { Editor } from "obsidian";
 import { HORIZONTAL_LINE_CLASS, NEWLINE, ROLE_IDENTIFIER } from "src/Constants";
 import { getHeadingPrefix } from "src/Utilities/TextHelpers";
+import { toErrorMessage } from "src/Utilities/AiErrorFormatter";
 
 /**
  * Utility functions for editor operations
@@ -32,7 +33,7 @@ export function moveCursorToEnd(editor: Editor): void {
     };
     editor.setCursor(newCursor);
   } catch (err) {
-    throw new Error("Error moving cursor to end of file" + err);
+    throw new Error(`Error moving cursor to end of file: ${toErrorMessage(err)}`);
   }
 }
 

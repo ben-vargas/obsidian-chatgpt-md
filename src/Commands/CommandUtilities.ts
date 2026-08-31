@@ -35,14 +35,14 @@ export async function fetchAvailableModels(
 ): Promise<string[]> {
   function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
     return new Promise((resolve) => {
-      const timer = setTimeout(() => resolve(fallback), ms);
+      const timer = window.setTimeout(() => resolve(fallback), ms);
       promise.then(
         (value) => {
-          clearTimeout(timer);
+          window.clearTimeout(timer);
           resolve(value);
         },
         () => {
-          clearTimeout(timer);
+          window.clearTimeout(timer);
           resolve(fallback);
         }
       );

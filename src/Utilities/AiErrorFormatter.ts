@@ -4,6 +4,11 @@ interface ErrorLike {
   cause?: ErrorLike;
 }
 
+/** Coerce an unknown caught value to a display-safe message string. */
+export function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function formatStreamError(error: unknown): string {
   const err = toErrorLike(error);
   let rootCause = err;
@@ -39,5 +44,5 @@ function getErrorMessage(rootCause: ErrorLike | undefined, err: ErrorLike | unde
 
 function toErrorLike(error: unknown): ErrorLike | undefined {
   if (!error || typeof error !== "object") return undefined;
-  return error as ErrorLike;
+  return error;
 }
