@@ -217,16 +217,6 @@ export class CreateAgentModal extends Modal {
     });
     desc.style.color = "var(--text-muted)";
     desc.style.marginTop = "16px";
-
-    this.addSpinnerStyle();
-  }
-
-  private addSpinnerStyle(): void {
-    if (document.getElementById("chatgpt-md-spinner-style")) return;
-    const style = document.createElement("style");
-    style.id = "chatgpt-md-spinner-style";
-    style.textContent = `@keyframes chatgpt-md-spin { to { transform: rotate(360deg); } }`;
-    document.head.appendChild(style);
   }
 
   // ── Step: Manual Form ─────────────────────────────────────
@@ -306,7 +296,7 @@ export class CreateAgentModal extends Modal {
   }
 
   private addTemperatureField(container: HTMLElement): void {
-    const tempDisplay = container.createEl("span", { text: this.temperature.toFixed(1) });
+    const tempDisplay = container.createSpan({ text: this.temperature.toFixed(1) });
     tempDisplay.style.marginLeft = "8px";
     tempDisplay.style.fontFamily = "monospace";
 

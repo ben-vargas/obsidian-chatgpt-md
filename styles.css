@@ -144,3 +144,10 @@
   display: inline-block;
   line-height: 1.4;
 }
+
+/* Spinner animation for CreateAgentModal (loaded from styles.css per Obsidian guidelines) */
+@keyframes chatgpt-md-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
