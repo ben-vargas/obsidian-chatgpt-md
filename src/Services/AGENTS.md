@@ -4,7 +4,7 @@ Authoritative architecture and implementation rules are in `/AGENTS.md`, `/CONTR
 
 ## Request path
 
-`ChatHandler` resolves settings/messages and calls `AiProviderService`. The facade delegates provider selection/cache to `ProviderRuntime`, request-option normalization to `AiRequestOptions`, and stream iteration to `StreamConsumer`. Provider protocol differences remain in `Adapters/`; operational metadata remains in `Providers/ProviderRegistry.ts`.
+`ChatHandler` resolves settings/messages and calls `AiProviderService`. The facade delegates provider selection/cache to `ProviderRuntime`, request-option normalization to `AiRequestOptions`, and stream iteration to `StreamConsumer`. Provider protocol differences remain in `Adapters/`; operational metadata remains in `Providers/ProviderRegistry.ts`. Network transport goes through `requestStream.ts`: Node http/https via guarded `window.require` on desktop, `window.fetch` on mobile — keep it free of static Node imports.
 
 ## Settings/frontmatter
 

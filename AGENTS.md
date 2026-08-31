@@ -24,7 +24,22 @@ npm test -- --runInBand
 npm run lint
 ```
 
-Current lint may report complexity/length warnings. Do not treat existing warnings as task blockers unless your change adds new warnings.
+Lint runs the official Obsidian plugin rules via `eslint-plugin-obsidianmd`. Expected state: **0 errors** and a small set of known warnings (untyped tool results in `ToolService`, the `prefer-setting-definitions` nudge). Do not add new warnings; do not treat the known ones as task blockers. `no-unsupported-api` cannot be disabled inline — it validates every API call against `minAppVersion` in `manifest.json`.
+
+## Compatibility floor and dependency pins
+
+- `minAppVersion` is **1.11.4**, pinned by the SecretStorage/`SecretComponent` credential APIs (`ApiAuthService`). Copilot uses the same floor.
+- The `obsidian` devDependency is pinned to the same **1.11.4** so `tsc` enforces the floor alongside the lint rule. Never set it back to `latest`.
+- `@codemirror/state` (`6.5.0`) and `@codemirror/view` (`6.38.6`) must stay exact: `obsidian` declares them as exact peers.
+- `typescript` is 6.x latest (`<6.1.0`): TypeScript 7 is blocked by `@typescript-eslint` peer ranges.
+- When raising `minAppVersion`, update the `obsidian` typings pin in the same change.
+
+### Releasing
+
+1. Merge work to `master`, validate (`npm test -- --runInBand`, `npm run build`).
+2. `node update-version.mjs <x.y.z>` — updates `package.json`, `manifest.json`, `versions.json`, commits, and tags.
+3. Push `master` and the tag.
+4. Create the GitHub release with the three Obsidian-required assets: `main.js`, `manifest.json`, `styles.css`. `versions.json` gates updates so users on older Obsidian stay on the last compatible release.
 
 ## Current architecture
 
@@ -79,11 +94,16 @@ Current lint may report complexity/length warnings. Do not treat existing warnin
 - `src/Services/MessageService.ts`, `EditorService.ts`, `FileService.ts`, `TemplateService.ts`
   - Editor/message/file/template coordination.
 
+- `src/Services/requestStream.ts`, `ApiAuthService.ts`
+  - Dual HTTP transport: desktop uses Node http/https loaded through guarded `window.require` (no static Node imports; local structural types keep the mobile bundle clean), mobile falls back to `window.fetch` (requestUrl cannot stream). Secure credential storage wraps Obsidian's SecretStorage with plaintext fallback on old versions.
+
 ### Views and utilities
 
 - `src/Views/*`
   - Obsidian modals and settings UI.
   - Keep business logic out of views when practical.
+  - Style with CSS classes in `styles.css` (`chatgpt-md-` prefix), never inline `element.style` assignments — `obsidianmd/no-static-styles-assignment` enforces this. UI strings follow sentence case (lint autofix available; `ChatGPT MD` and `React` are protected as brands).
+  - The settings tab renders imperatively via `display()` from `settingsSchema.ts`. The declarative `getSettingDefinitions()` API (Obsidian 1.13+, settings search) is a deliberate backlog item until `minAppVersion` reaches 1.13.
 
 - `src/Utilities/*`
   - Stateless helpers. Prefer adding pure behavior here when no service state is needed.

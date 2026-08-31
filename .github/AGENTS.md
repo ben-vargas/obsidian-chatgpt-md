@@ -9,7 +9,7 @@ This folder contains repository automation, primarily GitHub Actions workflows.
 ## Rules for agents
 
 - Do not weaken CI to make failures pass.
-- Keep CI aligned with documented local validation commands in `AGENTS.md`, root `CLAUDE.md`, and `docs/development.md`.
+- Keep CI aligned with documented local validation commands in `AGENTS.md` and `docs/development.md`.
 - Prefer npm commands:
 
 ```bash

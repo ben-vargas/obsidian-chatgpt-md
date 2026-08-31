@@ -146,13 +146,15 @@ Describes executable tools:
 - `file_read` - Read specific files
 - `web_search` - Web search via Brave API
 
+`RegisteredTool.inputSchema` is `z.ZodType` (the `z.ZodSchema` alias is deprecated in Zod 4); `execute` takes `Record<string, unknown>` and narrows via the schema.
+
 ## Constants
 
-Cross-cutting constants (provider IDs, command IDs, message-format markers, link regexes, error messages, timing) live in `src/Constants.ts`; `src/CLAUDE.md` describes the file's role. Read the source for exact values — they drift from docs.
+Cross-cutting constants (provider IDs, command IDs, message-format markers, link regexes, error messages, timing) live in `src/Constants.ts`; `src/AGENTS.md` describes the file's role. Read the source for exact values — they drift from docs.
 
 ## Types/ Directory
 
-See `src/Types/CLAUDE.md` for AI service interfaces.
+See `src/Types/AGENTS.md` for AI service interfaces.
 
 ## Settings Migration
 

@@ -26,7 +26,11 @@ Do not treat bundle output as source code.
 
 ### `scripts/tool-whitelist/`
 
-Manual workflow for discovering models, testing tool support, and generating whitelist suggestions. See `scripts/tool-whitelist/CLAUDE.md` and the README files in that folder.
+Manual workflow for discovering models, testing tool support, and generating whitelist suggestions. See `scripts/tool-whitelist/AGENTS.md` and the README files in that folder.
+
+### `update-version.mjs` and `version-bump.mjs`
+
+Release versioning. `node update-version.mjs <x.y.z>` updates `package.json`, `manifest.json`, `versions.json`, commits, and tags. `version-bump.mjs` (npm `version` lifecycle) syncs manifest/versions from the package version. After tagging, publish a GitHub release with `main.js`, `manifest.json`, and `styles.css` attached.
 
 ## Editing scripts
 

@@ -7,7 +7,7 @@ Utilities are stateless and should be tested without Obsidian where practical.
 Current high-value modules:
 
 - `AiRequestOptions.ts` — legacy/frontmatter names to AI SDK 7 generation options
-- `AiErrorFormatter.ts` — safe streaming error formatting
+- `AiErrorFormatter.ts` — safe streaming error formatting and `toErrorMessage()` for unknown caught values
 - `AgentWizardHelpers.ts` — validated wizard JSON parsing
 - `EditorHelpers.ts` — simple editor mutations
 - `ErrorMessageFormatter.ts` — HTTP/user error messages

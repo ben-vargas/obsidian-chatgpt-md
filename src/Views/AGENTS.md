@@ -124,7 +124,11 @@ Extends `SuggestModal<TFile>`
 
 **Plugin settings UI**
 
-`ChatGPT_MDSettingsTab.ts` extends `PluginSettingTab` and renders definitions from `settingsSchema.ts`. Prefer adding/changing settings in the schema rather than hardcoding UI rows in the tab.
+`ChatGPT_MDSettingsTab.ts` extends `PluginSettingTab` and renders imperatively via `display()` from definitions in `settingsSchema.ts`. Prefer adding/changing settings in the schema rather than hardcoding UI rows in the tab.
+
+- API keys render as `SecretComponent` rows (Obsidian 1.11.4 SecretStorage) with plaintext text-field fallback on older builds; migration retried on each open
+- The declarative `getSettingDefinitions()` API (Obsidian 1.13+, native settings search) is a deliberate backlog item until `minAppVersion` reaches 1.13
+- Destructive actions confirm via `ConfirmationModal` and refresh with `display()`
 
 Settings organized in sections:
 
@@ -156,6 +160,19 @@ Asks user to create missing folders when chat/template/agent folder doesn't exis
 
 - Simple Yes/No modal
 - Called by `FileService.ensureFolderExists()`
+
+### ConfirmationModal.ts
+
+**Generic confirmation dialog**
+
+Replaces `window.confirm` (discouraged by Obsidian guidelines). Takes title/body/confirmText and an async `onConfirm`.
+
+## Styling conventions
+
+- All styling lives in `styles.css` as `chatgpt-md-`-prefixed classes; never assign `element.style.*` in views (`obsidianmd/no-static-styles-assignment` enforces it)
+- Hover/disabled states are `:hover`/`:disabled` rules, not imperative toggles
+- The wizard spinner is the `chatgpt-md-spinner` class; its `@keyframes chatgpt-md-spin` live in `styles.css` (never inject `<style>` elements — `obsidianmd/no-forbidden-elements`)
+- UI strings use sentence case; `ChatGPT MD` and `React` are protected brands in the lint config
 
 ## Modal Patterns
 

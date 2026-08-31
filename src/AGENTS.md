@@ -1,6 +1,6 @@
 # Source Tree Guidance
 
-This directory contains the Obsidian plugin runtime source. Prefer the more specific `CLAUDE.md` files in child directories when editing code there.
+This directory contains the Obsidian plugin runtime source. Prefer the more specific `AGENTS.md` files in child directories when editing code there.
 
 ## Top-level source files
 

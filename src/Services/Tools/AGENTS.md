@@ -12,7 +12,7 @@ Defines the built-in tools returned by `createDefaultTools(context)`:
 - `file_read` - reads selected vault files via `VaultSearchService.readFiles()`
 - `web_search` - searches the web via `WebSearchService.searchWeb()`
 
-Tools are created with Vercel AI SDK `tool()` and zod schemas via `zodSchema()`.
+Tools are created with Vercel AI SDK `tool()` and zod schemas via `zodSchema()`. Each tool's `execute` declares the interface's `args: Record<string, unknown>` (TypeScript 6 enforces parameter variance) and narrows with its own `inputSchema.parse(args)` — `ToolService` already validates args against the same schema before dispatch.
 
 ## Security and privacy rules
 

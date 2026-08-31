@@ -19,7 +19,7 @@ Sync Impact Report
   - ✅ reviewed; no change required: .specify/templates/checklist-template.md
   - ✅ reviewed; no command templates installed: .specify/templates/commands/
 - Runtime guidance reviewed:
-  - ✅ no change required: README.md, AGENTS.md, all CLAUDE.md files,
+  - ✅ no change required: README.md, AGENTS.md, all per-directory AGENTS.md files,
     CONTRIBUTING.md, SECURITY.md, docs/development.md, docs/message-flow.md,
     and CHANGELOG.md
 - Deferred items: none
@@ -118,7 +118,7 @@ Every feature plan and code review MUST assess constitutional compliance. Except
 must be documented in the plan's Complexity Tracking table, must include a migration or removal path,
 and require explicit maintainer approval. The constitution's ratification date remains fixed; the last
 amended date changes whenever its normative content changes. Runtime implementation details remain
-in `AGENTS.md`, the applicable `CLAUDE.md`, `CONTRIBUTING.md`, and active documentation, all subordinate
+in `AGENTS.md`, the applicable directory `AGENTS.md`, `CONTRIBUTING.md`, and active documentation, all subordinate
 to this constitution.
 
 **Version**: 1.0.0 | **Ratified**: 2026-07-22 | **Last Amended**: 2026-07-22

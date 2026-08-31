@@ -13,7 +13,7 @@ Prefer these as current references:
 - `BUILD_OPTIMIZATION.md` - bundle analysis/build optimization notes
 - `CREATE_SERVICE.md` - historical provider/service guidance; verify against current provider registry before following literally
 
-Root `README.md`, root `CLAUDE.md`, and code are more authoritative than older docs when they conflict.
+Root `README.md`, root `AGENTS.md`, and code are more authoritative than older docs when they conflict.
 
 ## Historical feature artifacts
 
@@ -30,7 +30,7 @@ They are useful for context and rationale, but do not treat old plans/status fil
 When code changes affect user/developer behavior, update docs in the same change when practical:
 
 - User-facing setup/usage changes → `README.md`
-- Agent/coding guidance → relevant `CLAUDE.md`
+- Agent/coding guidance → relevant `AGENTS.md`
 - Build/development flow → `docs/development.md`
 - Message parsing/request flow → `docs/message-flow.md`
 - Tool whitelist behavior → `docs/tool-whitelist.md` and `scripts/tool-whitelist/` docs
