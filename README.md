@@ -10,6 +10,8 @@ Chat with AI directly in your notes. Reference your other notes with `[[wiki lin
 
 ## ✨ What's New
 
+**Official Obsidian Guidelines (v3.3)** — Cleaner theming, sentence-case UI, honest compatibility requirements, and a bundle that plays by Obsidian's official rules.
+
 **Provider Reliability (v3.2)** — Updated provider integrations, safer tool calling, and more reliable model selection and streaming across cloud and local providers.
 
 **Agents (v3.1)** — Create AI personas like a writing coach, code reviewer, or brainstorming partner. Apply them to any note instantly.
@@ -19,6 +21,8 @@ Chat with AI directly in your notes. Reference your other notes with `[[wiki lin
 ---
 
 ## 🚀 Get Started in 30 Seconds
+
+> **Requirements:** Obsidian **1.11.4 or newer** (needed for secure key storage) and an API key from any supported provider — or a free, private local setup via Ollama/LM Studio.
 
 1. **Install** — Settings → Community Plugins → Browse → Search "ChatGPT MD"
 2. **Add API key** — Settings → ChatGPT MD → Paste your key (OpenAI, Anthropic, or OpenRouter)

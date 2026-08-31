@@ -1,5 +1,22 @@
 # ChatGPT MD Changelog
 
+## Unreleased
+
+- Upgrades the Vercel AI SDK family (ai 7.0.85), zod 4.5.4, and dev tooling (TypeScript 6.0.3, ESLint 10.9, Jest 30.5).
+- Pins the `obsidian` typings and the exact CodeMirror peers to the 1.11.4 compatibility floor so the compiler enforces it alongside the lint rules.
+- Narrows tool arguments through each tool's zod schema, required by TypeScript 6's stricter parameter variance checking.
+- Migrates all CLAUDE.md agent instructions to AGENTS.md; the root CLAUDE.md remains as a pointer for tooling compatibility.
+
+## v3.3.0 - Official Obsidian Guidelines and Compatibility Floor
+
+- Adopts the official Obsidian developer guidelines end to end via `eslint-plugin-obsidianmd`, resolving 267 guideline violations with zero errors remaining.
+- Raises the minimum Obsidian version to **1.11.4**, matching what the secure API key storage actually requires. Users on older Obsidian versions stay on 3.2.1 until they update Obsidian.
+- Moves all modal and settings styling to CSS classes in `styles.css` for better theme compatibility; the spinner animation no longer injects a `<style>` element at runtime.
+- Replaces `window.confirm` with an Obsidian-style confirmation modal for the insecure-key cleanup action.
+- Applies Obsidian's sentence-case convention to UI text while preserving the ChatGPT MD branding.
+- Hardens the mobile transport: no static Node.js imports in the bundle, while desktop keeps the CORS-bypassing Node transport behind a guarded require.
+- Fixes unsafe `TFolder`/`TFile` casts in template lookups, types the Anthropic model-list responses, and validates parsed YAML before use.
+
 ## v3.2.1 - Mobile Compatibility and Secure API Key Storage
 
 - Fixes plugin startup on Android by building against browser-safe dependency entry points and excluding Node-only runtime imports from the mobile bundle.
