@@ -1,7 +1,7 @@
 {
   "id": "chatgpt-md",
   "name": "ChatGPT MD",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "minAppVersion": "1.11.4",
   "description": "Chat with cloud and local AI providers directly in your notes.",
   "author": "Deniz Okcu (created by Bram Adams)",

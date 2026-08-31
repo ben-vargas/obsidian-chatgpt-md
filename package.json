@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-md",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "description": "Chat with cloud and local AI providers directly in your notes.",
   "main": "main.js",
   "type": "module",
