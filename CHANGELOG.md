@@ -1,6 +1,6 @@
 # ChatGPT MD Changelog
 
-## Unreleased
+## v3.3.1 - Dependency Upgrades and Agent Instruction Migration
 
 - Upgrades the Vercel AI SDK family (ai 7.0.85), zod 4.5.4, and dev tooling (TypeScript 6.0.3, ESLint 10.9, Jest 30.5).
 - Pins the `obsidian` typings and the exact CodeMirror peers to the 1.11.4 compatibility floor so the compiler enforces it alongside the lint rules.
