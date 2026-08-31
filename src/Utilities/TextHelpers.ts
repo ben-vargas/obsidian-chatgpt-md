@@ -7,6 +7,7 @@ import {
   ROLE_IDENTIFIER,
   ROLE_USER,
 } from "src/Constants";
+import { toErrorMessage } from "src/Utilities/AiErrorFormatter";
 
 const cleanupRole = (role: string): string => {
   const trimmedRole = role.trim().toLowerCase();
@@ -40,7 +41,7 @@ export const extractRoleAndMessage = (message: string) => {
       content: contentSections.join("\n").trim(),
     };
   } catch (error) {
-    throw new Error(`Failed to extract role and message: ${error}`);
+    throw new Error(`Failed to extract role and message: ${toErrorMessage(error)}`);
   }
 };
 

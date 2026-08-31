@@ -41,8 +41,13 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
     this.renderRequestDescription(container);
 
     // File selection for file_read tool
-    if (this.toolName === "file_read" && this.args && Array.isArray(this.args.filePaths)) {
-      this.renderFileSelection(container, this.args.filePaths);
+    const filePaths = this.args?.filePaths;
+    if (
+      this.toolName === "file_read" &&
+      Array.isArray(filePaths) &&
+      filePaths.every((p): p is string => typeof p === "string")
+    ) {
+      this.renderFileSelection(container, filePaths);
     }
   }
 

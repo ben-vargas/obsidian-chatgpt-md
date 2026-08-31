@@ -17,6 +17,7 @@ import {
 import { getAiApiUrls } from "./CommandUtilities";
 import { AbortableAiService } from "./StopStreamingHandler";
 import { CommandMetadata, EditorViewCommandHandler } from "./CommandHandler";
+import { toErrorMessage } from "src/Utilities/AiErrorFormatter";
 
 /**
  * Handler for the main chat command
@@ -93,7 +94,7 @@ export class ChatHandler implements EditorViewCommandHandler {
       await this.maybeInferTitle(view, frontmatter, settings, messagesWithRoleAndMessage, messages, aiService);
     } catch (err) {
       if (Platform.isMobile) {
-        const reason = err instanceof Error ? err.message : String(err);
+        const reason = toErrorMessage(err);
         new Notice(`${PLUGIN_PREFIX} Calling ${frontmatter.model}. ${reason}`, NOTICE_DURATION_LONG_MS);
       }
       this.services.errorService.handleApiError(err, "ChatHandler.execute", {

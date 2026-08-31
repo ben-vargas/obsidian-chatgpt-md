@@ -44,7 +44,7 @@ export interface ToolExecutionResult {
  */
 export interface RegisteredTool {
   description: string;
-  inputSchema: z.ZodSchema;
+  inputSchema: z.ZodType;
   execute: (args: Record<string, unknown>, context: ToolExecutionContext) => Promise<unknown>;
 }
 

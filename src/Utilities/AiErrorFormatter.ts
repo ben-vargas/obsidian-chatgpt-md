@@ -4,6 +4,11 @@ interface ErrorLike {
   cause?: ErrorLike;
 }
 
+/** Coerce an unknown caught value to a display-safe message string. */
+export function toErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function formatStreamError(error: unknown): string {
   const err = toErrorLike(error);
   let rootCause = err;
