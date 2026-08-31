@@ -121,7 +121,7 @@ export class ChatHandler implements EditorViewCommandHandler {
     const settingsWithApiKey = this.buildTitleInferenceSettings(settings, frontmatter);
     if (!this.ensureTitleInferenceModel(settingsWithApiKey, frontmatter.aiService)) return;
 
-    await aiService.inferTitle(view, settingsWithApiKey as ChatGPT_MDSettings, messages, this.services.editorService);
+    await aiService.inferTitle(view, settingsWithApiKey, messages, this.services.editorService);
   }
 
   private shouldInferTitle(view: MarkdownView, settings: ChatGPT_MDSettings, messagesWithRole: Message[]): boolean {

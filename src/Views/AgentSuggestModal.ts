@@ -40,7 +40,7 @@ export class AgentSuggestModal extends SuggestModal<AgentItem> {
   }
 
   renderSuggestion(agent: AgentItem, el: HTMLElement): void {
-    el.createEl("div", { text: agent.title });
+    el.createDiv({ text: agent.title });
   }
 
   onChooseSuggestion(agent: AgentItem): void {

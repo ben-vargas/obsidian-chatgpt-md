@@ -75,11 +75,11 @@ export class SearchResultsApprovalModal extends BaseApprovalModal<SearchResultsA
       label.style.flex = "1";
       label.style.cursor = "pointer";
 
-      const nameEl = label.createEl("div", { text: result.basename });
+      const nameEl = label.createDiv({ text: result.basename });
       nameEl.style.fontWeight = "500";
       nameEl.style.fontSize = "0.95em";
 
-      const pathEl = label.createEl("div", { text: displayPath });
+      const pathEl = label.createDiv({ text: displayPath });
       pathEl.style.fontSize = "0.85em";
       pathEl.style.opacity = "0.6";
       pathEl.style.marginTop = "2px";

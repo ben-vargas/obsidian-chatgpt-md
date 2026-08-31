@@ -151,3 +151,28 @@
     transform: rotate(360deg);
   }
 }
+
+.chatgpt-md-setting-input {
+  width: 300px;
+}
+
+.chatgpt-md-textarea-large {
+  height: 260px;
+  min-height: 260px;
+}
+
+.chatgpt-md-textarea-medium {
+  height: 200px;
+  min-height: 200px;
+}
+
+/* Confirmation modal */
+.chatgpt-md-confirmation-body {
+  margin-bottom: 12px;
+}
+
+.chatgpt-md-confirmation-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

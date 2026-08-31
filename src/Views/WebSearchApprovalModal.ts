@@ -48,7 +48,7 @@ export class WebSearchApprovalModal extends BaseApprovalModal<WebSearchApprovalD
     checkbox.onchange = () => this.selections.set(result.url, checkbox.checked);
 
     const label = resultItem.createEl("label", { cls: "chatgpt-md-selection-content" });
-    label.createEl("div", { text: result.title, cls: "chatgpt-md-selection-title" });
+    label.createDiv({ text: result.title, cls: "chatgpt-md-selection-title" });
     const url = label.createEl("a", {
       text: result.url,
       href: result.url,
@@ -57,7 +57,7 @@ export class WebSearchApprovalModal extends BaseApprovalModal<WebSearchApprovalD
     url.setAttr("target", "_blank");
 
     if (result.snippet) {
-      label.createEl("div", {
+      label.createDiv({
         text: result.snippet.substring(0, 150) + (result.snippet.length > 150 ? "..." : ""),
         cls: "chatgpt-md-selection-snippet",
       });

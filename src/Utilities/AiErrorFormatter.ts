@@ -39,5 +39,5 @@ function getErrorMessage(rootCause: ErrorLike | undefined, err: ErrorLike | unde
 
 function toErrorLike(error: unknown): ErrorLike | undefined {
   if (!error || typeof error !== "object") return undefined;
-  return error as ErrorLike;
+  return error;
 }

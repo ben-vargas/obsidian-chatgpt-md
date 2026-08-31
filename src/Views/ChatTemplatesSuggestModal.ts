@@ -58,7 +58,7 @@ export class ChatTemplatesSuggestModal extends SuggestModal<ChatTemplate> {
 
   // Renders each suggestion item.
   renderSuggestion(template: ChatTemplate, el: HTMLElement) {
-    el.createEl("div", { text: template.title });
+    el.createDiv({ text: template.title });
   }
 
   // Perform action on the selected suggestion.

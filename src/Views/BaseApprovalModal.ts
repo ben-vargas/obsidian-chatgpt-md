@@ -116,7 +116,7 @@ export abstract class BaseApprovalModal<TDecision> extends Modal {
    * Render control note with styling
    */
   protected renderControlNote(container: HTMLElement): void {
-    const note = container.createEl("div", { text: this.getControlNoteText() });
+    const note = container.createDiv({ text: this.getControlNoteText() });
     note.style.padding = "12px";
     note.style.backgroundColor = "var(--background-secondary)";
     note.style.borderRadius = "6px";

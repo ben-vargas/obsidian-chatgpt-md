@@ -1,8 +1,17 @@
-import { App, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
+import {
+  App,
+  Notice,
+  Plugin,
+  PluginSettingTab,
+  Setting,
+  SettingDefinitionItem,
+  SettingDefinitionRender,
+} from "obsidian";
 import { ChatGPT_MDSettings } from "src/Models/Config";
 import { ApiAuthService, isValidApiKey, isValidSecretId } from "src/Services/ApiAuthService";
 import { CredentialDefinition, getCredentialDefinitions } from "src/Services/Providers/ProviderRegistry";
-import { COLLAPSIBLE_GROUPS, createSettingsSchema, SettingDefinition } from "./settingsSchema";
+import { createSettingsSchema, SettingDefinition } from "./settingsSchema";
+import { ConfirmationModal } from "./ConfirmationModal";
 
 interface SettingsProvider {
   settings: ChatGPT_MDSettings;
@@ -53,7 +62,7 @@ export function parseSettingValue(schema: SettingDefinition, value: string | boo
 
 export class ChatGPT_MDSettingsTab extends PluginSettingTab {
   settingsProvider: SettingsProvider;
-  private displayInProgress = false;
+  private migrationStarted = false;
 
   constructor(app: App, plugin: Plugin, settingsProvider: SettingsProvider) {
     super(app, plugin);
@@ -67,129 +76,65 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     this.settingsProvider.updateSettings({ [key]: value });
   }
 
-  display(): void {
-    void this.displayAfterMigration();
+  /**
+   * Declarative settings API (Obsidian 1.13+): native rendering, grouping,
+   * and settings search, driven by the shared settings schema. Per-row
+   * controls are wired imperatively in populateSetting.
+   */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    void this.ensureCredentialMigration();
+    return this.buildSettingItems(createSettingsSchema(this.settingsProvider.settings));
   }
 
-  private async displayAfterMigration(): Promise<void> {
-    if (this.displayInProgress) return;
-    this.displayInProgress = true;
+  /**
+   * Retry the credential migration once per session, then re-render so
+   * insecure-copy notices reflect the current state.
+   */
+  private async ensureCredentialMigration(): Promise<void> {
+    if (this.migrationStarted) return;
+    this.migrationStarted = true;
     try {
       await this.settingsProvider.retryCredentialMigration();
     } catch {
       new Notice("Some credentials could not be migrated. They remain available and will be retried.");
-    }
-
-    try {
-      this.renderSettings();
     } finally {
-      this.displayInProgress = false;
+      this.update();
     }
   }
 
-  private renderSettings(): void {
-    const { containerEl } = this;
-    containerEl.empty();
-    const settingsSchema = createSettingsSchema(this.settingsProvider.settings);
-    const { regularGroups, collapsibleGroups } = this.groupSettings(settingsSchema);
-    this.renderPriorityGroups(containerEl, regularGroups);
-    this.renderProviderGroups(containerEl, collapsibleGroups);
-    this.renderRemainingGroups(containerEl, regularGroups);
+  private groupSettings(settingsSchema: SettingDefinition[]): Record<string, SettingDefinition[]> {
+    const groups: Record<string, SettingDefinition[]> = {};
+    for (const setting of settingsSchema) {
+      groups[setting.group] = [...(groups[setting.group] || []), setting];
+    }
+    return groups;
   }
 
-  private groupSettings(settingsSchema: SettingDefinition[]): {
-    regularGroups: Record<string, SettingDefinition[]>;
-    collapsibleGroups: Record<string, SettingDefinition[]>;
-  } {
-    return settingsSchema.reduce(
-      (groups, setting) => {
-        const target = COLLAPSIBLE_GROUPS.includes(setting.group) ? groups.collapsibleGroups : groups.regularGroups;
-        target[setting.group] = [...(target[setting.group] || []), setting];
-        return groups;
-      },
-      { regularGroups: {}, collapsibleGroups: {} } as {
-        regularGroups: Record<string, SettingDefinition[]>;
-        collapsibleGroups: Record<string, SettingDefinition[]>;
-      }
-    );
+  private buildSettingItems(settingsSchema: SettingDefinition[]): SettingDefinitionItem[] {
+    const groups = this.groupSettings(settingsSchema);
+    const items: SettingDefinitionItem[] = [];
+
+    const pushGroup = (heading: string, settings: SettingDefinition[] | undefined): void => {
+      if (!settings?.length) return;
+      items.push({ type: "group", heading, items: settings.map((setting) => this.toRenderDefinition(setting)) });
+      delete groups[heading];
+    };
+
+    pushGroup("API Keys", groups["API Keys"]);
+    pushGroup("Chat Behavior", groups["Chat Behavior"]);
+    Object.entries(groups).forEach(([group, settings]) => pushGroup(group, settings));
+    return items;
   }
 
-  private renderPriorityGroups(container: HTMLElement, regularGroups: Record<string, SettingDefinition[]>): void {
-    this.renderRegularGroup(container, regularGroups, "API Keys");
-    this.renderRegularGroup(container, regularGroups, "Chat Behavior");
+  private toRenderDefinition(schema: SettingDefinition): SettingDefinitionRender {
+    return {
+      name: schema.name,
+      desc: schema.description,
+      render: (setting: Setting) => this.populateSetting(setting, schema),
+    };
   }
 
-  private renderRegularGroup(
-    container: HTMLElement,
-    regularGroups: Record<string, SettingDefinition[]>,
-    group: string
-  ): void {
-    const settings = regularGroups[group];
-    if (!settings) return;
-
-    this.renderGroupHeader(container, group);
-    settings.forEach((setting) => this.createSettingElement(container, setting));
-    container.createEl("hr");
-    delete regularGroups[group];
-  }
-
-  private renderProviderGroups(container: HTMLElement, collapsibleGroups: Record<string, SettingDefinition[]>): void {
-    if (Object.keys(collapsibleGroups).length === 0) return;
-
-    this.renderGroupHeader(container, "Provider Settings");
-    const providerNote = container.createEl("p", {
-      text: "Configure default settings for each AI provider. Click to expand.",
-      cls: "setting-item-description",
-    });
-    providerNote.style.marginTop = "-10px";
-    providerNote.style.marginBottom = "15px";
-
-    Object.entries(collapsibleGroups).forEach(([group, settings]) => {
-      this.renderCollapsibleGroup(container, group, settings);
-    });
-    container.createEl("hr");
-  }
-
-  private renderRemainingGroups(container: HTMLElement, regularGroups: Record<string, SettingDefinition[]>): void {
-    Object.keys(regularGroups).forEach((group) => this.renderRegularGroup(container, regularGroups, group));
-  }
-
-  /**
-   * Render a group header (h3)
-   */
-  private renderGroupHeader(container: HTMLElement, title: string): void {
-    container.createEl("h3", { text: title });
-  }
-
-  /**
-   * Render a collapsible group using details/summary elements
-   */
-  private renderCollapsibleGroup(container: HTMLElement, group: string, settings: SettingDefinition[]): void {
-    const details = container.createEl("details", { cls: "chatgpt-md-collapsible-group" });
-    details.style.marginBottom = "10px";
-    details.style.border = "1px solid var(--background-modifier-border)";
-    details.style.borderRadius = "5px";
-    details.style.padding = "0";
-
-    const summary = details.createEl("summary", { text: group });
-    summary.style.padding = "10px 15px";
-    summary.style.cursor = "pointer";
-    summary.style.fontWeight = "600";
-    summary.style.backgroundColor = "var(--background-secondary)";
-    summary.style.borderRadius = "5px";
-    summary.style.userSelect = "none";
-
-    const content = details.createEl("div", { cls: "chatgpt-md-collapsible-content" });
-    content.style.padding = "10px 15px";
-
-    settings.forEach((setting) => {
-      this.createSettingElement(content, setting);
-    });
-  }
-
-  createSettingElement(container: HTMLElement, schema: SettingDefinition): void {
-    const setting = new Setting(container).setName(schema.name).setDesc(schema.description);
-
+  private populateSetting(setting: Setting, schema: SettingDefinition): void {
     if (schema.type === "text") this.addTextSetting(setting, schema);
     if (schema.type === "credential") this.addCredentialSetting(setting, schema);
     if (schema.type === "textarea") this.addTextareaSetting(setting, schema);
@@ -230,14 +175,20 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     setting.addButton((button) =>
       button
         .setButtonText("Delete insecure copy")
-        .setWarning()
-        .onClick(async () => {
-          if (!window.confirm(`Delete the insecure ${definition.label} plaintext copy?`)) return;
-          try {
-            if (await this.settingsProvider.deleteInsecureCredentialCopy(definition)) this.display();
-          } catch {
-            new Notice("The insecure copy could not be deleted and was retained.");
-          }
+        .setDestructive()
+        .onClick(() => {
+          new ConfirmationModal(this.app, {
+            title: "Delete insecure copy",
+            body: `Delete the insecure ${definition.label} plaintext copy? The secure credential is unaffected.`,
+            confirmText: "Delete insecure copy",
+            onConfirm: async () => {
+              try {
+                if (await this.settingsProvider.deleteInsecureCredentialCopy(definition)) this.update();
+              } catch {
+                new Notice("The insecure copy could not be deleted and was retained.");
+              }
+            },
+          }).open();
         })
     );
   }
@@ -249,11 +200,11 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
     }
 
     const previous = this.settingsProvider.settings[key];
-    this.updateSetting(key, value as ChatGPT_MDSettings[typeof key]);
+    this.updateSetting(key, value);
     try {
       await this.settingsProvider.saveSettings();
     } catch {
-      this.updateSetting(key, previous as ChatGPT_MDSettings[typeof key]);
+      this.updateSetting(key, previous);
       new Notice(`Could not save credential selection for ${label}`);
     }
   }
@@ -264,7 +215,7 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
         .setPlaceholder(schema.placeholder || "")
         .setValue(String(this.settingsProvider.settings[schema.id]))
         .onChange((value) => this.saveSetting(schema, value));
-      text.inputEl.style.width = "300px";
+      text.inputEl.addClass("chatgpt-md-setting-input");
       return text;
     });
   }
@@ -275,7 +226,7 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
         .setPlaceholder(schema.placeholder || "")
         .setValue(String(this.settingsProvider.settings[schema.id] || schema.placeholder))
         .onChange((value) => this.saveSetting(schema, value));
-      text.inputEl.style.width = "300px";
+      text.inputEl.addClass("chatgpt-md-setting-input");
       this.applyTextareaHeight(text.inputEl, schema);
       return text;
     });
@@ -294,27 +245,25 @@ export class ChatGPT_MDSettingsTab extends PluginSettingTab {
       dropdown.addOptions(schema.options || {});
       dropdown.setValue(String(this.settingsProvider.settings[schema.id]));
       dropdown.onChange((value) => this.saveSetting(schema, value));
-      dropdown.selectEl.style.width = "300px";
+      dropdown.selectEl.addClass("chatgpt-md-setting-input");
       return dropdown;
     });
   }
 
   private applyTextareaHeight(inputEl: HTMLTextAreaElement, schema: SettingDefinition): void {
     if (schema.id === "defaultChatFrontmatter" || schema.id === "pluginSystemMessage") {
-      inputEl.style.height = "260px";
-      inputEl.style.minHeight = "260px";
+      inputEl.addClass("chatgpt-md-textarea-large");
     }
 
     if (schema.id === "toolEnabledModels") {
-      inputEl.style.height = "200px";
-      inputEl.style.minHeight = "200px";
+      inputEl.addClass("chatgpt-md-textarea-medium");
     }
   }
 
   private async saveSetting(schema: SettingDefinition, value: string | boolean): Promise<void> {
     try {
       const parsedValue = parseSettingValue(schema, value);
-      this.updateSetting(schema.id, parsedValue as ChatGPT_MDSettings[typeof schema.id]);
+      this.updateSetting(schema.id, parsedValue);
       await this.settingsProvider.saveSettings();
     } catch (error) {
       new Notice(error instanceof Error ? error.message : `Invalid value for ${schema.name}`);

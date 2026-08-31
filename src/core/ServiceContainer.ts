@@ -179,7 +179,7 @@ export class ServiceContainer {
     return {
       notificationService,
       errorService,
-      apiAuthService: new ApiAuthService(app, SecretComponent as unknown),
+      apiAuthService: new ApiAuthService(app, SecretComponent),
     };
   }
 

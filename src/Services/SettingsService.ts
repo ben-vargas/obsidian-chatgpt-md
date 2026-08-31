@@ -167,9 +167,9 @@ export class SettingsService {
 
     // Determine AI service
     const aiService =
-      (merged.aiService as string | undefined) ||
-      aiProviderFromUrl(merged.url as string | undefined, merged.model as string | undefined) ||
-      aiProviderFromKeys(merged as Record<string, unknown>) ||
+      merged.aiService ||
+      aiProviderFromUrl(merged.url, merged.model) ||
+      aiProviderFromKeys(merged) ||
       AI_SERVICE_OPENAI;
 
     // Get default config for the determined service

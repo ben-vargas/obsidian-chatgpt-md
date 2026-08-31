@@ -90,7 +90,7 @@ export class SettingsMigrationService {
 
       updateSettings({
         [migration.setting]: currentValue.replace(migration.pattern, migration.replacement),
-      } as Partial<ChatGPT_MDSettings>);
+      });
       Logger.debug(`[ChatGPT MD] Migration (${migration.introducedIn}): ${migration.description}`);
       updated = true;
     }

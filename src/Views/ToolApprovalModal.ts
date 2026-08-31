@@ -89,11 +89,11 @@ export class ToolApprovalModal extends BaseApprovalModal<ToolApprovalDecision> {
       label.style.flex = "1";
       label.style.cursor = "pointer";
 
-      const nameEl = label.createEl("div", { text: fileName });
+      const nameEl = label.createDiv({ text: fileName });
       nameEl.style.fontWeight = "500";
       nameEl.style.fontSize = "0.95em";
 
-      const pathEl = label.createEl("div", { text: path });
+      const pathEl = label.createDiv({ text: path });
       pathEl.style.fontSize = "0.85em";
       pathEl.style.opacity = "0.6";
       pathEl.style.marginTop = "2px";
